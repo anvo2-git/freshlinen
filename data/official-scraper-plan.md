@@ -1,0 +1,155 @@
+# Official Site Scraper Plan
+
+Prepared on `2026-04-28` for the first enrichment wave.
+
+## Objective
+
+Build and run a repeatable scraper that enriches the existing perfume dataset from official brand sites, starting with brands that:
+
+- have strong catalog coverage in `data/brand-registry.csv`
+- are currently fetchable without a headless browser war
+- expose recent or new fragrance listings on official pages
+
+The first execution wave targets:
+
+1. `Guerlain`
+2. `Zara`
+3. `Xerjoff`
+
+## Deliverables
+
+1. A reusable adapter interface for brand sites
+2. Raw crawl snapshots for replay/debugging
+3. A normalized enrichment dataset for official perfumes
+4. A latest-release seed set merged into the enrichment queue
+5. A command that can be rerun without manual intervention
+
+## Execution Plan
+
+### Phase 1: Scaffold the scraper
+
+Create a Python scraper package under `scripts/official_scraper/` with:
+
+- `base.py`
+  - `list_products()`
+  - `parse_product(url)`
+  - `normalize_record(raw_record)`
+- `brands/guerlain.py`
+- `brands/zara.py`
+- `brands/xerjoff.py`
+- `runner.py`
+
+Shared normalized output schema:
+
+- `brand_name`
+- `official_url`
+- `product_name`
+- `collection`
+- `description`
+- `top_notes`
+- `middle_notes`
+- `base_notes`
+- `key_notes`
+- `accord_text`
+- `size_options`
+- `price_text`
+- `release_signal`
+- `source_type`
+- `scraped_at`
+- `raw_html_path`
+
+### Phase 2: Discovery strategy per brand
+
+Use brand-specific collection pages first, then crawl product detail pages.
+
+- `Guerlain`
+  - new arrivals page
+  - fragrance featured page
+  - official fragrance collection page
+- `Zara`
+  - fragrance category page
+  - directly seeded recent product pages
+- `Xerjoff`
+  - official new arrivals collection
+  - journal posts for release context
+
+### Phase 3: Storage strategy
+
+Write three artifacts per run:
+
+1. `data/raw/<brand>/<timestamp>/...html`
+2. `data/official-products/<brand>-products.jsonl`
+3. `data/official-products/latest-release-enrichment.csv`
+
+Keep the raw HTML so parsers can be debugged without hitting the site again.
+
+### Phase 4: Matching strategy
+
+Match official products back to the Kaggle corpus using:
+
+1. normalized brand slug exact match
+2. normalized product name exact match
+3. fallback fuzzy match on `brand + perfume name`
+4. manual review bucket for unresolved matches
+
+Do not auto-merge ambiguous matches.
+
+### Phase 5: Initial execution order
+
+Run in this order:
+
+1. `Xerjoff`
+  - smallest surface area
+  - explicit new-arrivals page
+  - likely fastest path to a working adapter
+2. `Guerlain`
+  - richer text and structured merchandising
+  - useful for RAG enrichment quality
+3. `Zara`
+  - highest volume among fetchable targets
+  - likely messier front-end behavior, but worth it once the pipeline is stable
+
+### Phase 6: Definition of done
+
+The overnight enrichment pass is successful if it produces:
+
+- `>= 100` normalized official product records across the first three brands
+- `>= 10` current release records from official pages
+- raw snapshots for every fetched product page
+- a machine-readable unresolved-match queue
+
+## Latest Release Seeds
+
+Use `data/latest-release-seeds.csv` as the first queue.
+
+It currently includes official release candidates from:
+
+- `Guerlain`
+- `Zara`
+- `Xerjoff`
+
+## Risks
+
+1. Front-end rendered category pages may hide product URLs from plain HTML.
+2. Locale redirects may create unstable URLs.
+3. Product naming on official sites may not exactly match the Kaggle corpus.
+4. Some pages may expose notes only in images or embedded JSON.
+
+## Mitigations
+
+1. Save raw responses and inspect embedded JSON before escalating to headless tools.
+2. Canonicalize URLs after redirects.
+3. Separate scraping from matching so parser work is not blocked by dedup logic.
+4. Start with the seed set even if collection crawling is imperfect.
+
+## Next Commands
+
+Suggested commands for the first autonomous implementation pass:
+
+```bash
+npm run brand-registry
+python3 scripts/official_scraper/runner.py --brand xerjoff
+python3 scripts/official_scraper/runner.py --brand guerlain
+python3 scripts/official_scraper/runner.py --brand zara
+python3 scripts/official_scraper/runner.py --seed-file data/latest-release-seeds.csv
+```

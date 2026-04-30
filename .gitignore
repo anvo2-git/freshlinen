@@ -42,3 +42,7 @@ next-env.d.ts
 
 # playwright mcp artifacts
 .playwright-mcp/
+
+# generated scraping artifacts
+data/raw/
+data/rag/perfume-fts.db

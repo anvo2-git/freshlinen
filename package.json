@@ -1,5 +1,5 @@
 {
-  "name": "vibecode",
+  "name": "freshlinen",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,6 +7,9 @@
     "build": "LD_LIBRARY_PATH=$HOME/.local/lib next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "brand-registry": "python3 scripts/build-brand-registry.py --catalog70k /home/anvo23/projects/perfume-rec/data/catalog_70k.csv --cleaned24k /home/anvo23/projects/perfume-rec/data/perfumes/fra_cleaned.csv --output data/brand-registry.csv",
+    "official-scrape": "python3 -m scripts.official_scraper.runner --brand all --seed-file data/latest-release-seeds.csv",
+    "build-rag": "python3 scripts/build-rag-corpus.py",
     "postinstall": "node scripts/patch-esm.js"
   },
   "dependencies": {

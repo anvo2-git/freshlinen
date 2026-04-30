@@ -1,0 +1,26 @@
+brand_name,brand_slug,count_24k,count_70k,official_url,domain_status,platform_guess,scraper_tier,priority_notes
+Avon,avon,578,1263,https://www.avon.com/,blocked,custom/cloudfront,later,High coverage but plain HTTP returns 403.
+Zara,zara,524,926,https://www.zara.com/us/en/woman-beauty-perfumes-l1415.html,fetchable,custom/spa,pilot,Large catalog and fetchable collection page.
+O Boticario,o-boticario,381,551,https://www.boticario.com/,fetchable,custom-commerce,pilot,High coverage and plain fetch works.
+Guerlain,guerlain,347,520,https://www.guerlain.com/us/en-us/fragrance/,fetchable,salesforce-commerce,pilot,High coverage and rich fragrance copy.
+Natura,natura,300,466,https://www.natura.com.br/,unverified,unknown,research,"High coverage, official domain not yet checked in this pass."
+Oriflame,oriflame,290,396,https://www.oriflame.com/,unverified,unknown,research,"High coverage, likely regionalized product pages."
+Yves Saint Laurent,yves-saint-laurent,197,253,https://www.yslbeauty.com/,fetchable,salesforce-commerce,pilot,Fetchable fragrance site with likely consistent product templates.
+Dior,dior,196,275,https://www.dior.com/en_us/beauty/fragrance-1,fetchable,salesforce-commerce,pilot,Rich descriptions and clean category landing pages.
+Givenchy,givenchy,196,272,https://www.givenchybeauty.com/us,fetchable,adobe-commerce,pilot,High coverage and plain fetch works.
+Giorgio Armani,giorgio-armani,185,229,https://www.giorgioarmanibeauty-usa.com/,blocked,adobe-commerce,later,Official site blocks plain fetch with 403.
+Calvin Klein,calvin-klein,176,189,https://www.calvinklein.us/en/women/fragrance,fetchable,salesforce-commerce,wave-2,Fetchable but likely retailer-style listing pages.
+Lattafa Perfumes,lattafa-perfumes,174,235,https://lattafa.com/,blocked,custom/cloudflare,later,High relevance but plain fetch returns 403.
+Carolina Herrera,carolina-herrera,148,189,https://www.carolinaherrera.com/us/fragrance,fetchable,custom-commerce,wave-2,Fetchable fragrance landing pages.
+Xerjoff,xerjoff,132,176,https://www.xerjoff.com/en-us,fetchable,shopify-like,pilot,Smaller but high-quality niche text.
+Bath & Body Works,bath-body-works,131,614,https://www.bathandbodyworks.com/c/body-care/fragrance,challenge,custom-commerce,later,Redirect/challenge behavior on plain fetch.
+Armaf,armaf,130,256,https://armaf.com/,fetchable,custom-commerce,wave-2,Fetchable and likely simpler than luxury sites.
+L'Occitane en Provence,l-occitane-en-provence,130,197,https://www.loccitane.com/en-us/fragrances,challenge,salesforce-commerce,later,Demandware challenge page on direct fetch.
+Kenzo,kenzo,129,161,https://www.kenzoparfums.com/,fetchable,custom-commerce,wave-2,Fetchable locale-aware fragrance site.
+Rasasi,rasasi,126,224,https://rasasionline.com/,blocked,custom-cloudflare,later,Plain fetch returns 403.
+Jo Malone London,jo-malone-london,126,198,https://www.jomalone.com/,fetchable,custom-commerce,wave-2,Fetchable and note-rich product pages likely available.
+Roja Dove,roja-dove,124,158,https://www.rojaparfums.com/,fetchable,custom-commerce,wave-2,Redirects to Roja London and fetch works.
+Jean Paul Gaultier,jean-paul-gaultier,122,159,https://www.jeanpaulgaultier.com/us/en_US/fragrances,fetchable,custom-commerce,wave-2,"Fetchable, likely structured fragrance catalog."
+Victoria's Secret,victoria-s-secret,121,758,https://www.victoriassecret.com/us/vs/beauty/perfume,fetchable,custom-commerce,wave-2,Fetchable fragrance collection pages.
+Lancôme,lancome,120,189,https://www.lancome.co.uk/,blocked,custom-cloudflare,later,Plain fetch returns 403.
+Boadicea the Victorious,boadicea-the-victorious,112,175,https://boadiceaperfume.com/,fetchable,custom-commerce,wave-2,Fetchable niche site with likely rich product detail.

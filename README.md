@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FreshLinen
 
-## Getting Started
+FreshLinen is a perfume discovery and retrieval prototype built on top of a 68,000-fragrance catalog. The project combines a Next.js frontend, a growing official-brand scraping pipeline, and a local retrieval layer over a merged perfume corpus.
 
-First, run the development server:
+This repository currently contains the Week 6 v1 build:
+
+- a working multi-page perfume app in Next.js
+- an official brand scraper for Guerlain, Xerjoff, and Zara
+- generated enrichment artifacts under `data/official-products/`
+- a corpus builder that merges catalog and official enrichment data
+- a local SQLite FTS retrieval script for natural-language perfume queries
+
+## v1 scope
+
+The current v1 focuses on getting an end-to-end retrieval workflow working before adding a full LLM-backed answer generation service.
+
+Implemented:
+
+- catalog-backed perfume browsing and recommendation UI
+- official release scraping pipeline
+- RAG corpus generation into `data/rag/perfume-documents.jsonl`
+- local full-text retrieval over the corpus via `scripts/query-rag.py`
+
+Planned next:
+
+- backend RAG API for retrieval + answer generation
+- embeddings / hybrid retrieval experiments
+- evaluation workflow and dashboard
+
+## Stack
+
+- Next.js 16
+- TypeScript
+- Tailwind CSS v4
+- Python scripts for data ingestion and retrieval tooling
+- SQLite FTS5 for local retrieval prototyping
+- Supabase and Clerk for app persistence/auth in the web app
+
+## Key scripts
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run brand-registry
+npm run official-scrape
+npm run build-rag
+python3 scripts/query-rag.py "woody winter vanilla" --limit 5
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Data outputs
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Generated artifacts currently include:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `data/brand-registry.csv`
+- `data/official-products/*.jsonl`
+- `data/official-products/latest-release-enrichment.csv`
+- `data/rag/perfume-documents.jsonl`
+- `data/rag/manifest.json`
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Zara scraping is partially blocked by `403` responses in the current environment, so blocked items are preserved as seed metadata instead of failing the run.
+- The retrieval layer in v1 is lexical FTS over a merged perfume corpus. This is a staging point for later embedding-based retrieval and evaluation work.
+- `data/rag/perfume-fts.db` is intentionally not committed because it is rebuilt automatically on first query.
