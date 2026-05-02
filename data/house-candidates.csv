@@ -1,0 +1,31 @@
+brand_name,brand_slug,discovery_score,discovery_sources,fragrantica_rank,news_hits,official_url,registry_domain_status,registry_platform_guess,registry_scraper_tier,registry_count_70k,registry_count_24k,priority_notes,bucket
+Guerlain,guerlain,231,fragrantica_home;latest_release_seeds;brand_registry,4,0,https://www.guerlain.com/us/en-us/fragrance/,fetchable,salesforce-commerce,pilot,520,347,High coverage and rich fragrance copy.,popular
+Xerjoff,xerjoff,223,fragrantica_home;latest_release_seeds;brand_registry,12,0,https://www.xerjoff.com/en-us,fetchable,shopify-like,pilot,176,132,Smaller but high-quality niche text.,popular
+Zara,zara,222,fragrantica_home;latest_release_seeds;brand_registry,13,0,https://www.zara.com/us/en/woman-beauty-perfumes-l1415.html,fetchable,custom/spa,pilot,926,524,Large catalog and fetchable collection page.,popular
+Dior,dior,173,fragrantica_home;brand_registry,2,0,https://www.dior.com/en_us/beauty/fragrance-1,fetchable,salesforce-commerce,pilot,275,196,Rich descriptions and clean category landing pages.,popular
+Yves Saint Laurent,yves-saint-laurent,172,fragrantica_home;brand_registry,3,0,https://www.yslbeauty.com/,fetchable,salesforce-commerce,pilot,253,197,Fetchable fragrance site with likely consistent product templates.,popular
+Jean Paul Gaultier,jean-paul-gaultier,168,fragrantica_home;brand_registry,7,0,https://www.jeanpaulgaultier.com/us/en_US/fragrances,fetchable,custom-commerce,wave-2,159,122,"Fetchable, likely structured fragrance catalog.",popular
+Armaf,armaf,165,fragrantica_home;brand_registry,10,0,https://armaf.com/,fetchable,custom-commerce,wave-2,256,130,Fetchable and likely simpler than luxury sites.,popular
+Lattafa Perfumes,lattafa-perfumes,139,fragrantica_home;brand_registry,1,0,https://lattafa.com/,blocked,custom/cloudflare,later,235,174,High relevance but plain fetch returns 403.,popular
+Giorgio Armani,giorgio-armani,135,fragrantica_home;brand_registry,5,0,https://www.giorgioarmanibeauty-usa.com/,blocked,adobe-commerce,later,229,185,Official site blocks plain fetch with 403.,popular
+Tom Ford,tom-ford,114,fragrantica_home,6,0,,,,,,,,popular
+Givenchy,givenchy,146,fragrantica_home;brand_registry,29,0,https://www.givenchybeauty.com/us,fetchable,adobe-commerce,pilot,272,196,High coverage and plain fetch works.,high_end
+Victoria's Secret,victoria-s-secret,130,fragrantica_home;brand_registry,45,0,https://www.victoriassecret.com/us/vs/beauty/perfume,fetchable,custom-commerce,wave-2,758,121,Fetchable fragrance collection pages.,high_end
+Bath & Body Works,bath-and-body-works,117,fragrantica_home;brand_registry,33,0,https://www.bathandbodyworks.com/c/body-care/fragrance,challenge,custom-commerce,later,614,131,Redirect/challenge behavior on plain fetch.,high_end
+O Boticario,o-boticario,55,brand_registry,,0,https://www.boticario.com/,fetchable,custom-commerce,pilot,551,381,High coverage and plain fetch works.,high_end
+Carolina Herrera,carolina-herrera,148,fragrantica_home;brand_registry,27,0,https://www.carolinaherrera.com/us/fragrance,fetchable,custom-commerce,wave-2,189,148,Fetchable fragrance landing pages.,niche
+Jo Malone London,jo-malone-london,137,fragrantica_home;brand_registry,38,0,https://www.jomalone.com/,fetchable,custom-commerce,wave-2,198,126,Fetchable and note-rich product pages likely available.,niche
+Calvin Klein,calvin-klein,122,fragrantica_home;brand_registry,53,0,https://www.calvinklein.us/en/women/fragrance,fetchable,salesforce-commerce,wave-2,189,176,Fetchable but likely retailer-style listing pages.,niche
+Boadicea the Victorious,boadicea-the-victorious,55,brand_registry,,0,https://boadiceaperfume.com/,fetchable,custom-commerce,wave-2,175,112,Fetchable niche site with likely rich product detail.,niche
+Kenzo,kenzo,55,brand_registry,,0,https://www.kenzoparfums.com/,fetchable,custom-commerce,wave-2,161,129,Fetchable locale-aware fragrance site.,niche
+Roja Dove,roja-dove,55,brand_registry,,0,https://www.rojaparfums.com/,fetchable,custom-commerce,wave-2,158,124,Redirects to Roja London and fetch works.,niche
+L'Occitane en Provence,l-occitane-en-provence,30,brand_registry,,0,https://www.loccitane.com/en-us/fragrances,challenge,salesforce-commerce,later,197,130,Demandware challenge page on direct fetch.,niche
+Natura,natura,104,fragrantica_home;brand_registry,36,0,https://www.natura.com.br/,unverified,unknown,research,466,300,"High coverage, official domain not yet checked in this pass.",other
+Lancôme,lanc-me,103,fragrantica_home;brand_registry,37,0,https://www.lancome.co.uk/,blocked,custom-cloudflare,later,189,120,Plain fetch returns 403.,other
+Rasasi,rasasi,101,fragrantica_home;brand_registry,39,0,https://rasasionline.com/,blocked,custom-cloudflare,later,224,126,Plain fetch returns 403.,other
+Louis Vuitton,louis-vuitton,99,fragrantica_home,21,0,,,,,,,,other
+Rabanne,rabanne,98,fragrantica_home,22,0,,,,,,,,other
+Maison Martin Margiela,maison-martin-margiela,97,fragrantica_home,23,0,,,,,,,,other
+Mancera,mancera,96,fragrantica_home,24,0,,,,,,,,other
+Valentino,valentino,95,fragrantica_home,25,0,,,,,,,,other
+Diptyque,diptyque,94,fragrantica_home,26,0,,,,,,,,other

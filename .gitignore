@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+test-results/
 
 # next.js
 /.next/
@@ -46,3 +47,6 @@ next-env.d.ts
 # generated scraping artifacts
 data/raw/
 data/rag/perfume-fts.db
+
+# clerk configuration (can include secrets)
+/.clerk/

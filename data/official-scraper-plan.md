@@ -16,6 +16,13 @@ The first execution wave targets:
 2. `Zara`
 3. `Xerjoff`
 
+The next wave expands that fixed list into a two-step pipeline:
+
+1. discover candidate perfume houses from Fragrantica home/news plus the current registry
+2. keep a curated niche-heavy shortlist as the primary scrape queue, then fall back to Fragrantica search or registry entries when a house URL is missing
+
+The current working shortlist lives in `data/house-shortlist.csv` and is the source of truth for the next scrape pass. It currently focuses on roughly 50 niche houses. The exploratory output in `data/house-candidates.csv` is kept only as a discovery aid.
+
 ## Deliverables
 
 1. A reusable adapter interface for brand sites
@@ -38,6 +45,7 @@ Create a Python scraper package under `scripts/official_scraper/` with:
 - `brands/zara.py`
 - `brands/xerjoff.py`
 - `runner.py`
+- `brands/generic.py`
 
 Shared normalized output schema:
 
@@ -72,6 +80,27 @@ Use brand-specific collection pages first, then crawl product detail pages.
 - `Xerjoff`
   - official new arrivals collection
   - journal posts for release context
+
+### Phase 2b: House discovery strategy
+
+Build a candidate list before scraping:
+
+1. Pull prominent brands from Fragrantica's home page.
+2. Pull active release mentions from Fragrantica news.
+3. Merge in the current `data/brand-registry.csv` and `data/latest-release-seeds.csv`.
+4. Bucket the resulting houses into:
+   - popular
+   - high-end
+   - niche
+   - other
+5. Sample the exploratory discovery output when you want to widen the queue later.
+
+This avoids over-sampling only the biggest catalog houses.
+
+For the actual scrape queue, prefer the curated shortlist over the exploratory dump:
+
+- `data/house-shortlist.csv` - stable reviewable queue of 50 niche houses
+- `data/house-candidates.csv` - exploratory, algorithmic discovery output
 
 ### Phase 3: Storage strategy
 
@@ -109,6 +138,8 @@ Run in this order:
   - highest volume among fetchable targets
   - likely messier front-end behavior, but worth it once the pipeline is stable
 
+For the balanced discovery queue, keep the first pass small and inspect the resulting mix before scaling the limit upward.
+
 ### Phase 6: Definition of done
 
 The overnight enrichment pass is successful if it produces:
@@ -134,6 +165,7 @@ It currently includes official release candidates from:
 2. Locale redirects may create unstable URLs.
 3. Product naming on official sites may not exactly match the Kaggle corpus.
 4. Some pages may expose notes only in images or embedded JSON.
+5. Notes and performance metrics are often better sourced from Fragrantica or Parfumo than from official brand sites.
 
 ## Mitigations
 
@@ -141,6 +173,17 @@ It currently includes official release candidates from:
 2. Canonicalize URLs after redirects.
 3. Separate scraping from matching so parser work is not blocked by dedup logic.
 4. Start with the seed set even if collection crawling is imperfect.
+5. Use a notes-first Playwright pass before merging official-site metadata into the corpus.
+
+## Notes Source Priority
+
+For note-heavy enrichment, prefer this order:
+
+1. Fragrantica perfume pages
+2. Parfumo perfume pages
+3. Official brand pages when they explicitly list notes
+4. Retailers like Sephora or Ulta when they expose key notes
+5. Descriptions and tags only as a last resort
 
 ## Next Commands
 
@@ -148,6 +191,8 @@ Suggested commands for the first autonomous implementation pass:
 
 ```bash
 npm run brand-registry
+python3 scripts/discover-houses.py
+python3 scripts/scrape-houses.py --houses-file data/house-candidates.csv --only-top 20
 python3 scripts/official_scraper/runner.py --brand xerjoff
 python3 scripts/official_scraper/runner.py --brand guerlain
 python3 scripts/official_scraper/runner.py --brand zara

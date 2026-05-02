@@ -7,6 +7,10 @@
     "build": "LD_LIBRARY_PATH=$HOME/.local/lib next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test:e2e": "playwright test",
+    "discover-houses": "python3 scripts/discover-houses.py",
+    "scrape-houses": "python3 scripts/scrape-houses.py --houses-file data/house-candidates.csv",
+    "scrape-notes": "node scripts/scrape-notes.js",
     "brand-registry": "python3 scripts/build-brand-registry.py --catalog70k /home/anvo23/projects/perfume-rec/data/catalog_70k.csv --cleaned24k /home/anvo23/projects/perfume-rec/data/perfumes/fra_cleaned.csv --output data/brand-registry.csv",
     "official-scrape": "python3 -m scripts.official_scraper.runner --brand all --seed-file data/latest-release-seeds.csv",
     "build-rag": "python3 scripts/build-rag-corpus.py",
@@ -26,6 +30,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

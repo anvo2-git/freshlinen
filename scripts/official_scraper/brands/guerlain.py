@@ -5,8 +5,6 @@ import re
 from html import unescape
 from urllib.parse import urljoin
 
-import requests
-
 from ..base import BrandAdapter, ScrapeRecord, slugify, strip_tags
 
 
@@ -20,26 +18,12 @@ class GuerlainAdapter(BrandAdapter):
     )
     listing_url = "https://www.guerlain.com/us/en-us/fragrance/"
 
-    def _get_text(self, url: str) -> str:
-        response = requests.get(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Referer": self.listing_url,
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
-        return response.text
-
     def list_product_urls(self) -> list[str]:
         urls = set()
-        self._get_text(self.listing_url)
+        self.fetch_text(self.listing_url, extra_headers={"Referer": self.base_url})
         for start in (0, 120, 240):
             grid_url = f"{self.fragrance_grid}&start={start}&sz=120"
-            text = self._get_text(grid_url)
+            text = self.fetch_text(grid_url, extra_headers={"Referer": self.listing_url})
             self.save_raw(f"grid-{start}", text)
             matches = re.findall(r'/us/en-us/p/[^"\'?# ]+\.html', text)
             for match in matches:
@@ -66,7 +50,7 @@ class GuerlainAdapter(BrandAdapter):
         raise ValueError("No product JSON-LD found")
 
     def parse_product(self, url: str) -> ScrapeRecord:
-        html = self._get_text(url)
+        html = self.fetch_text(url, extra_headers={"Referer": self.listing_url})
         raw_path = self.save_raw(url.rsplit("/", 1)[-1].replace(".html", ""), html)
         try:
             product = self._extract_product_json(html)

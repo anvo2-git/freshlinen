@@ -178,12 +178,11 @@ def main() -> None:
 
     notes_index = load_notes_index(notes_path)
     official_index = {}
-    official_paths = []
-    for brand in ("xerjoff", "guerlain", "zara"):
-        path = official_dir / f"{brand}-products.jsonl"
-        if path.exists():
-            official_paths.append(path)
-            official_index.update(load_official_records(path))
+    official_paths = sorted(
+        path for path in official_dir.glob("*-products.jsonl") if path.is_file()
+    )
+    for path in official_paths:
+        official_index.update(load_official_records(path))
 
     catalog_docs = build_catalog_docs(catalog_path, notes_index, official_index)
     official_docs = build_official_docs(official_paths)

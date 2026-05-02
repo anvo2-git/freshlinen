@@ -6,7 +6,10 @@ This repository currently contains the Week 6 v1 build:
 
 - a working multi-page perfume app in Next.js
 - an official brand scraper for Guerlain, Xerjoff, and Zara
+- a curated 50-house niche shortlist for the next scrape wave
+- an exploratory Fragrantica-driven discovery dump for future expansion
 - generated enrichment artifacts under `data/official-products/`
+- a Playwright notes scraper for Fragrantica/Parfumo perfume pages
 - a corpus builder that merges catalog and official enrichment data
 - a local SQLite FTS retrieval script for natural-language perfume queries
 
@@ -18,6 +21,8 @@ Implemented:
 
 - catalog-backed perfume browsing and recommendation UI
 - official release scraping pipeline
+- curated 50-house niche shortlist at `data/house-shortlist.csv`
+- exploratory discovery via Fragrantica home/news plus registry/seed blending
 - RAG corpus generation into `data/rag/perfume-documents.jsonl`
 - local full-text retrieval over the corpus via `scripts/query-rag.py`
 
@@ -41,6 +46,8 @@ Planned next:
 ```bash
 npm run dev
 npm run brand-registry
+npm run discover-houses
+npm run scrape-houses
 npm run official-scrape
 npm run build-rag
 python3 scripts/query-rag.py "woody winter vanilla" --limit 5
@@ -51,13 +58,38 @@ python3 scripts/query-rag.py "woody winter vanilla" --limit 5
 Generated artifacts currently include:
 
 - `data/brand-registry.csv`
+- `data/house-shortlist.csv`
+- `data/house-candidates.csv`
 - `data/official-products/*.jsonl`
 - `data/official-products/latest-release-enrichment.csv`
+- `data/notes/*.jsonl` when you run the note scraper
 - `data/rag/perfume-documents.jsonl`
 - `data/rag/manifest.json`
+
+## Notes scraping
+
+The official-site scraper is good for metadata, but the note pyramids are often better sourced from Fragrantica or Parfumo.
+The current note scraper also captures main accords and performance stats when the source exposes them.
+
+Use the Playwright-based note scraper when you need structured top/middle/base notes:
+
+```bash
+npm run scrape-notes -- \
+  --url https://www.fragrantica.com/perfume/Xerjoff/1888-21616.html \
+  --url https://www.parfumo.com/Perfumes/Xerjoff/Casamorati_1888 \
+  --output data/notes/xerjoff-1888.jsonl
+```
+
+Current parsing priority:
+
+1. Fragrantica summary sentence and pyramid sections
+2. Fragrantica main accords plus rating, longevity, and sillage where available
+3. Parfumo pyramid sections, main accords, and numeric scent/longevity/sillage
+4. Official-site descriptions and tags as a fallback, not a substitute for notes
 
 ## Notes
 
 - Zara scraping is partially blocked by `403` responses in the current environment, so blocked items are preserved as seed metadata instead of failing the run.
+- The house pipeline now prefers the curated niche shortlist first, with the exploratory discovery dump kept around for future expansion.
 - The retrieval layer in v1 is lexical FTS over a merged perfume corpus. This is a staging point for later embedding-based retrieval and evaluation work.
 - `data/rag/perfume-fts.db` is intentionally not committed because it is rebuilt automatically on first query.

@@ -9,8 +9,8 @@ from html import unescape
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urljoin
-
-import requests
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
 USER_AGENT = (
@@ -112,27 +112,25 @@ class BrandAdapter:
     def __init__(self, output_root: Path, seed_file: Path | None = None):
         self.output_root = output_root
         self.seed_rows = read_seed_rows(seed_file, self.brand_name)
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": USER_AGENT,
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-            }
-        )
+        self.headers = {
+            "User-Agent": USER_AGENT,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
         self.run_id = now_utc()
         self.raw_dir = output_root / "data" / "raw" / self.brand_slug / self.run_id
         self.raw_dir.mkdir(parents=True, exist_ok=True)
 
-    def fetch_text(self, url: str) -> str:
-        response = requests.get(url, headers=dict(self.session.headers), timeout=30)
-        response.raise_for_status()
-        return response.text
+    def fetch_text(self, url: str, extra_headers: dict[str, str] | None = None) -> str:
+        headers = dict(self.headers)
+        if extra_headers:
+            headers.update(extra_headers)
+        request = Request(url, headers=headers)
+        with urlopen(request, timeout=30) as response:
+            return response.read().decode("utf-8", errors="ignore")
 
-    def fetch_json(self, url: str):
-        response = requests.get(url, headers=dict(self.session.headers), timeout=30)
-        response.raise_for_status()
-        return response.json()
+    def fetch_json(self, url: str, extra_headers: dict[str, str] | None = None):
+        return json.loads(self.fetch_text(url, extra_headers=extra_headers))
 
     def save_raw(self, name: str, text: str, suffix: str = ".html") -> str:
         safe_name = slugify(name)[:90] or "raw"
