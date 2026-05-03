@@ -300,9 +300,59 @@ async function fetchPage(browser, url) {
   };
 }
 
-async function scrapeUrl(browser, url) {
+async function resolveFragranticaQuery(browser, query) {
+  const searchUrl = `https://www.fragrantica.com/search/?query=${encodeURIComponent(query)}`;
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1600 },
+    userAgent:
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  });
+  await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForTimeout(1200);
+  const candidates = await page.$$eval('a[href*="/perfume/"]', (links) =>
+    links
+      .map((link) => ({
+        href: link.href || "",
+        text: (link.textContent || "").replace(/\s+/g, " ").trim(),
+      }))
+      .filter((item) => item.href),
+  ).catch(() => []);
+  await page.close();
+  const unique = [];
+  const seen = new Set();
+  for (const candidate of candidates) {
+    if (seen.has(candidate.href)) continue;
+    seen.add(candidate.href);
+    unique.push(candidate);
+  }
+  if (!unique.length) {
+    return "";
+  }
+  const tokens = String(query)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .filter(Boolean);
+  const scored = unique.map((candidate, index) => {
+    const href = candidate.href;
+    const lower = href.toLowerCase();
+    const text = candidate.text.toLowerCase();
+    const tokenScore = tokens.reduce((score, token) => score + (lower.includes(token) ? 1 : 0), 0);
+    const textScore = tokens.reduce((score, token) => score + (text.includes(token) ? 2 : 0), 0);
+    const exactScore = text.includes(query.toLowerCase()) ? 4 : 0;
+    return { href, index, score: tokenScore + textScore + exactScore };
+  });
+  scored.sort((left, right) => {
+    if (right.score !== left.score) return right.score - left.score;
+    return left.index - right.index;
+  });
+  return scored[0].href || "";
+}
+
+async function scrapeUrl(browser, url, query = "") {
   const result = {
     url,
+    query,
+    resolved_url: url,
     source: "",
     title: "",
     top_notes: [],
@@ -364,12 +414,15 @@ async function scrapeUrl(browser, url) {
 
 async function main() {
   const urls = [...new Set([...argValues("--url"), ...argValues("-u")])];
+  const queries = [...new Set([...argValues("--query"), ...argValues("-q")])];
   const output = argValue("--output", "");
   const quiet = hasFlag("--quiet");
   const useHeadless = !hasFlag("--headed");
 
-  if (!urls.length) {
-    console.error("Usage: node scripts/scrape-notes.js --url <perfume-url> [--url <perfume-url>] [--output file.jsonl]");
+  if (!urls.length && !queries.length) {
+    console.error(
+      "Usage: node scripts/scrape-notes.js --url <perfume-url> [--url <perfume-url>] [--query <brand product>] [--output file.jsonl]",
+    );
     process.exit(1);
   }
 
@@ -378,6 +431,47 @@ async function main() {
   for (const url of urls) {
     const row = await scrapeUrl(browser, url);
     row.source = /parfumo\.com/i.test(url) ? "parfumo" : /fragrantica\.com/i.test(url) ? "fragrantica" : "unknown";
+    rows.push(row);
+    if (!quiet) {
+      console.log(JSON.stringify(row, null, 2));
+    }
+  }
+  for (const query of queries) {
+    const resolvedUrl = await resolveFragranticaQuery(browser, query);
+    if (!resolvedUrl) {
+      const row = {
+        url: "",
+        query,
+        resolved_url: "",
+        source: "fragrantica",
+        title: "",
+        top_notes: [],
+        middle_notes: [],
+        base_notes: [],
+        accords: [],
+        rating_value: "",
+        rating_count: "",
+        longevity_value: "",
+        longevity_votes: "",
+        sillage_value: "",
+        sillage_votes: "",
+        raw_path: "",
+        blocked: false,
+        error: "no result",
+      };
+      rows.push(row);
+      if (!quiet) {
+        console.log(JSON.stringify(row, null, 2));
+      }
+      continue;
+    }
+    const row = await scrapeUrl(browser, resolvedUrl, query);
+    row.source = /parfumo\.com/i.test(resolvedUrl)
+      ? "parfumo"
+      : /fragrantica\.com/i.test(resolvedUrl)
+        ? "fragrantica"
+        : "unknown";
+    row.resolved_url = resolvedUrl;
     rows.push(row);
     if (!quiet) {
       console.log(JSON.stringify(row, null, 2));

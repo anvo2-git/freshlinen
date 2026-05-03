@@ -10,6 +10,7 @@ This repository currently contains the Week 6 v1 build:
 - an exploratory Fragrantica-driven discovery dump for future expansion
 - generated enrichment artifacts under `data/official-products/`
 - a Playwright notes scraper for Fragrantica/Parfumo perfume pages
+- automatic notes enrichment that prefers catalog-mapped Fragrantica pages
 - a corpus builder that merges catalog and official enrichment data
 - a local SQLite FTS retrieval script for natural-language perfume queries
 
@@ -70,6 +71,7 @@ Generated artifacts currently include:
 
 The official-site scraper is good for metadata, but the note pyramids are often better sourced from Fragrantica or Parfumo.
 The current note scraper also captures main accords and performance stats when the source exposes them.
+The house/product scrape now runs a notes enrichment pass automatically and only merges results when the match is confident.
 
 Use the Playwright-based note scraper when you need structured top/middle/base notes:
 
@@ -82,10 +84,11 @@ npm run scrape-notes -- \
 
 Current parsing priority:
 
-1. Fragrantica summary sentence and pyramid sections
-2. Fragrantica main accords plus rating, longevity, and sillage where available
-3. Parfumo pyramid sections, main accords, and numeric scent/longevity/sillage
-4. Official-site descriptions and tags as a fallback, not a substitute for notes
+1. Exact Fragrantica URL from the existing catalog, when available
+2. Fragrantica summary sentence and pyramid sections
+3. Fragrantica main accords plus rating, longevity, and sillage where available
+4. Parfumo pyramid sections, main accords, and numeric scent/longevity/sillage
+5. Official-site descriptions and tags as a fallback, not a substitute for notes
 
 ## Notes
 

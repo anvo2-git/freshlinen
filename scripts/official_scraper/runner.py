@@ -10,6 +10,7 @@ from .base import write_jsonl
 from .brands.guerlain import GuerlainAdapter
 from .brands.xerjoff import XerjoffAdapter
 from .brands.zara import ZaraAdapter
+from ..note_enrichment import enrich_rows_with_notes
 
 
 ADAPTERS = {
@@ -76,6 +77,7 @@ def main() -> None:
         if adapter.seed_rows:
             records.extend(adapter.latest_seed_records())
         json_rows = [record.as_json() for record in records]
+        json_rows = enrich_rows_with_notes(output_root, json_rows)
         out_path = output_root / "data" / "official-products" / f"{brand}-products.jsonl"
         write_jsonl(out_path, json_rows)
         for row in json_rows:

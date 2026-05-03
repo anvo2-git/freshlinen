@@ -179,11 +179,14 @@ It currently includes official release candidates from:
 
 For note-heavy enrichment, prefer this order:
 
-1. Fragrantica perfume pages
-2. Parfumo perfume pages
-3. Official brand pages when they explicitly list notes
-4. Retailers like Sephora or Ulta when they expose key notes
-5. Descriptions and tags only as a last resort
+1. Exact Fragrantica URLs from the existing catalog
+2. Fragrantica perfume pages
+3. Parfumo perfume pages
+4. Official brand pages when they explicitly list notes
+5. Retailers like Sephora or Ulta when they expose key notes
+6. Descriptions and tags only as a last resort
+
+The implementation now runs a notes enrichment pass automatically after each house scrape and keeps only high-confidence matches, so the output prefers correctness over overfitting search results.
 
 ## Next Commands
 

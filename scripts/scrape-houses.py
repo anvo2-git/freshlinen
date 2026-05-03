@@ -16,6 +16,7 @@ from scripts.official_scraper.brands.generic import GenericOfficialSiteAdapter
 from scripts.official_scraper.brands.guerlain import GuerlainAdapter
 from scripts.official_scraper.brands.xerjoff import XerjoffAdapter
 from scripts.official_scraper.brands.zara import ZaraAdapter
+from scripts.note_enrichment import enrich_rows_with_notes
 
 
 SPECIAL_ADAPTERS = {
@@ -113,6 +114,7 @@ def main() -> None:
         rows = scrape_candidate(output_root, seed_file, row, limit=args.limit_per_house)
         if not rows:
             continue
+        rows = enrich_rows_with_notes(output_root, rows)
         out_name = brand_slug or brand_name.lower().replace(" ", "-")
         out_path = output_root / "data" / "official-products" / f"{out_name}-products.jsonl"
         write_jsonl(out_path, rows)

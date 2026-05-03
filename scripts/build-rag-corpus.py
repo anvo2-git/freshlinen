@@ -101,6 +101,16 @@ def build_catalog_docs(
                 official_desc = official.get("description", "")
                 if official_desc:
                     doc_parts.append(f"Official description: {official_desc}")
+                top_notes = official.get("top_notes") or []
+                middle_notes = official.get("middle_notes") or []
+                base_notes = official.get("base_notes") or []
+                note_parts = [f"Top notes: {', '.join(top_notes)}" if top_notes else "",
+                              f"Middle notes: {', '.join(middle_notes)}" if middle_notes else "",
+                              f"Base notes: {', '.join(base_notes)}" if base_notes else ""]
+                doc_parts.extend(part for part in note_parts if part)
+                accord_text = official.get("accord_text", "")
+                if accord_text:
+                    doc_parts.append(f"Accords: {accord_text}")
                 extra = official.get("extra", {})
                 tags = extra.get("tags") or []
                 if tags:
@@ -140,11 +150,19 @@ def build_official_docs(official_paths: list[Path]) -> list[dict]:
                 continue
             extra = row.get("extra", {})
             tag_notes = extra.get("tags") or []
+            top_notes = row.get("top_notes") or []
+            middle_notes = row.get("middle_notes") or []
+            base_notes = row.get("base_notes") or []
+            accord_text = row.get("accord_text", "")
             doc_parts = [
                 f"Official product: {row.get('product_name', '')}",
                 f"Brand: {row.get('brand_name', '')}",
                 f"Collection: {row.get('collection', '')}",
                 f"Description: {row.get('description', '')}",
+                f"Top notes: {', '.join(top_notes)}" if top_notes else "",
+                f"Middle notes: {', '.join(middle_notes)}" if middle_notes else "",
+                f"Base notes: {', '.join(base_notes)}" if base_notes else "",
+                f"Accords: {accord_text}" if accord_text else "",
                 f"Official tags: {', '.join(tag_notes)}" if tag_notes else "",
                 f"Price: {row.get('price_text', '')}" if row.get("price_text") else "",
                 f"Release signal: {row.get('release_signal', '')}" if row.get("release_signal") else "",
