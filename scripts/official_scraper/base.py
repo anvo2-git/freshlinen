@@ -56,6 +56,25 @@ def ensure_json_serializable(value):
     return value
 
 
+def dedupe_rows(rows: Iterable[dict[str, object]]) -> list[dict[str, object]]:
+    seen: set[tuple[object, ...]] = set()
+    deduped: list[dict[str, object]] = []
+    for row in rows:
+        key = (
+            row.get("brand_name", ""),
+            row.get("official_url", ""),
+            row.get("product_name", ""),
+            row.get("source_status", ""),
+            row.get("source_type", ""),
+            row.get("source_id", ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(row)
+    return deduped
+
+
 @dataclass
 class ScrapeRecord:
     brand_name: str

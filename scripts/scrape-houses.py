@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.official_scraper.base import write_jsonl
+from scripts.official_scraper.base import dedupe_rows, write_jsonl
 from scripts.official_scraper.brands.generic import GenericOfficialSiteAdapter
 from scripts.official_scraper.brands.guerlain import GuerlainAdapter
 from scripts.official_scraper.brands.xerjoff import XerjoffAdapter
@@ -86,7 +86,7 @@ def scrape_candidate(output_root: Path, seed_file: Path, row: dict[str, str], li
     records = adapter.run(limit=limit)
     if adapter.seed_rows:
         records.extend(adapter.latest_seed_records())
-    return [record.as_json() for record in records]
+    return dedupe_rows([record.as_json() for record in records])
 
 
 def main() -> None:
