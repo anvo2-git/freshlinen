@@ -9,6 +9,7 @@ This repository currently contains the Week 6 v1 build:
 - a curated 50-house niche shortlist for the next scrape wave
 - an exploratory Fragrantica-driven discovery dump for future expansion
 - a Fragrantica-first perfume discovery script for broader house queues
+- a corpus-gap report and retailer-first discovery script for new perfume candidates
 - generated enrichment artifacts under `data/official-products/`
 - a Playwright notes scraper for Fragrantica/Parfumo perfume pages
 - automatic notes enrichment that prefers catalog-mapped Fragrantica pages
@@ -80,10 +81,13 @@ If you want a broader perfume queue before scraping official sites, start with:
 ```bash
 python3 scripts/discover-perfumes.py --houses-file data/house-shortlist.csv --output data/fragrantica-perfume-discovery.csv
 python3 scripts/filter-perfume-discovery.py --discovery data/fragrantica-perfume-discovery.csv --existing-corpus data/rag/perfume-documents.jsonl --output data/fragrantica-perfume-discovery.filtered.csv
+python3 scripts/corpus-gap-report.py --output data/corpus-gap-report.csv
+python3 scripts/discover-retailer-perfumes.py --houses-file data/house-shortlist.csv --existing-corpus data/rag/perfume-documents.jsonl --output data/retailer-perfume-discovery.csv
 ```
 
 That script mines the Fragrantica-linked corpus and is the right first step when a house's official site is too sparse to use as the primary discovery source.
 Always filter the discovery queue against the existing corpus before scraping anything new so we avoid overscraping duplicates.
+Use the gap report to prioritize houses with weak coverage in the merged corpus, then use retailer discovery for the actual new perfume queue.
 
 Use the Playwright-based note scraper when you need structured top/middle/base notes:
 
