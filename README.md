@@ -8,6 +8,7 @@ This repository currently contains the Week 6 v1 build:
 - an official brand scraper for Guerlain, Xerjoff, and Zara
 - a curated 50-house niche shortlist for the next scrape wave
 - an exploratory Fragrantica-driven discovery dump for future expansion
+- a Fragrantica-first perfume discovery script for broader house queues
 - generated enrichment artifacts under `data/official-products/`
 - a Playwright notes scraper for Fragrantica/Parfumo perfume pages
 - automatic notes enrichment that prefers catalog-mapped Fragrantica pages
@@ -24,6 +25,7 @@ Implemented:
 - official release scraping pipeline
 - curated 50-house niche shortlist at `data/house-shortlist.csv`
 - exploratory discovery via Fragrantica home/news plus registry/seed blending
+- Fragrantica-first perfume discovery from the linked 70k catalog
 - RAG corpus generation into `data/rag/perfume-documents.jsonl`
 - local full-text retrieval over the corpus via `scripts/query-rag.py`
 
@@ -72,6 +74,14 @@ Generated artifacts currently include:
 The official-site scraper is good for metadata, but the note pyramids are often better sourced from Fragrantica or Parfumo.
 The current note scraper also captures main accords and performance stats when the source exposes them.
 The house/product scrape now runs a notes enrichment pass automatically and only merges results when the match is confident.
+
+If you want a broader perfume queue before scraping official sites, start with:
+
+```bash
+python3 scripts/discover-perfumes.py --houses-file data/house-shortlist.csv --output data/fragrantica-perfume-discovery.csv
+```
+
+That script mines the Fragrantica-linked 70k catalog and is the right first step when a house's official site is too sparse to use as the primary discovery source.
 
 Use the Playwright-based note scraper when you need structured top/middle/base notes:
 
