@@ -79,9 +79,11 @@ If you want a broader perfume queue before scraping official sites, start with:
 
 ```bash
 python3 scripts/discover-perfumes.py --houses-file data/house-shortlist.csv --output data/fragrantica-perfume-discovery.csv
+python3 scripts/filter-perfume-discovery.py --discovery data/fragrantica-perfume-discovery.csv --existing-corpus data/rag/perfume-documents.jsonl --output data/fragrantica-perfume-discovery.filtered.csv
 ```
 
-That script mines the Fragrantica-linked 70k catalog and is the right first step when a house's official site is too sparse to use as the primary discovery source.
+That script mines the Fragrantica-linked corpus and is the right first step when a house's official site is too sparse to use as the primary discovery source.
+Always filter the discovery queue against the existing corpus before scraping anything new so we avoid overscraping duplicates.
 
 Use the Playwright-based note scraper when you need structured top/middle/base notes:
 

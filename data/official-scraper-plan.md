@@ -22,6 +22,7 @@ The next wave expands that fixed list into a two-step pipeline:
 2. keep a curated niche-heavy shortlist as the primary scrape queue, then fall back to Fragrantica search or registry entries when a house URL is missing
 
 The current working shortlist lives in `data/house-shortlist.csv` and is the source of truth for the next scrape pass. It currently focuses on roughly 50 niche houses. The exploratory output in `data/house-candidates.csv` is kept only as a discovery aid.
+For perfume discovery, always filter new Fragrantica/retailer candidates against the existing corpus in `data/rag/perfume-documents.jsonl` before scraping so we do not overscrape perfumes we already have.
 
 ## Deliverables
 
@@ -174,6 +175,7 @@ It currently includes official release candidates from:
 3. Separate scraping from matching so parser work is not blocked by dedup logic.
 4. Start with the seed set even if collection crawling is imperfect.
 5. Use a notes-first Playwright pass before merging official-site metadata into the corpus.
+6. Keep the discovery queue corpus-aware, and skip rows already present in the merged corpus.
 
 ## Notes Source Priority
 
