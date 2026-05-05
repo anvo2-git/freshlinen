@@ -24,6 +24,7 @@ The next wave expands that fixed list into a two-step pipeline:
 The current working shortlist lives in `data/house-shortlist.csv` and is the source of truth for the next scrape pass. It currently focuses on roughly 50 niche houses. The exploratory output in `data/house-candidates.csv` is kept only as a discovery aid.
 For perfume discovery, always filter new Fragrantica/retailer candidates against the existing corpus in `data/rag/perfume-documents.jsonl` before scraping so we do not overscrape perfumes we already have.
 Use the corpus gap report to prioritize houses with weak coverage, then use retailer listings as the first discovery source for new product URLs.
+The retailer discovery queue is scraped into `data/retailer-products/`, which the corpus builder now merges alongside official products.
 
 ## Deliverables
 

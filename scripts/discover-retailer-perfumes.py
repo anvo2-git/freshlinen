@@ -32,6 +32,35 @@ def load_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def load_brand_slugs(raw_slugs: str | None, brands_file: Path | None) -> list[str]:
+    brand_slugs: list[str] = []
+
+    if raw_slugs:
+        for slug in raw_slugs.split(","):
+            normalized = slugify(slug.strip())
+            if normalized:
+                brand_slugs.append(normalized)
+
+    if brands_file and brands_file.exists():
+        with brands_file.open(encoding="utf-8", errors="ignore") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                normalized = slugify(line)
+                if normalized:
+                    brand_slugs.append(normalized)
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for slug in brand_slugs:
+        if slug in seen:
+            continue
+        seen.add(slug)
+        ordered.append(slug)
+    return ordered
+
+
 def load_existing_keys(corpus_path: Path) -> set[tuple[str, str]]:
     existing: set[tuple[str, str]] = set()
     if not corpus_path.exists():
@@ -70,6 +99,8 @@ def main() -> None:
     parser.add_argument("--output", default="data/retailer-perfume-discovery.csv")
     parser.add_argument("--limit-brands", type=int, default=12)
     parser.add_argument("--source", choices=["shortlist", "registry", "both"], default="both")
+    parser.add_argument("--brand-slugs", default=None)
+    parser.add_argument("--brands-file", default=None)
     args = parser.parse_args()
 
     shortlist = load_rows(Path(args.houses_file))
@@ -82,6 +113,11 @@ def main() -> None:
     if args.source in {"registry", "both"}:
         candidates.extend(registry)
 
+    requested_brand_slugs = load_brand_slugs(
+        args.brand_slugs,
+        Path(args.brands_file) if args.brands_file else None,
+    )
+
     selected = []
     seen_brands: set[str] = set()
     for row in candidates:
@@ -89,9 +125,11 @@ def main() -> None:
         brand_slug = slugify(row.get("brand_slug") or brand_name)
         if not brand_name or not brand_slug or brand_slug in seen_brands:
             continue
+        if requested_brand_slugs and brand_slug not in requested_brand_slugs:
+            continue
         seen_brands.add(brand_slug)
         selected.append(row)
-        if len(selected) >= args.limit_brands:
+        if not requested_brand_slugs and len(selected) >= args.limit_brands:
             break
 
     output_rows: list[dict[str, str]] = []

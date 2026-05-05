@@ -45,6 +45,8 @@ def extract_release_signal(description: str) -> str:
 
 def load_notes_index(path: Path) -> dict[str, list[str]]:
     notes = {}
+    if not path.exists():
+        return notes
     with path.open(newline="", encoding="utf-8", errors="ignore") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
@@ -186,11 +188,23 @@ def build_official_docs(official_paths: list[Path]) -> list[dict]:
     return docs
 
 
+def load_jsonl_docs(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    docs = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        docs.append(json.loads(line))
+    return docs
+
+
 def main() -> None:
     repo_root = Path(__file__).resolve().parent.parent
     catalog_path = Path("/home/anvo23/projects/perfume-rec/data/catalog_70k.csv")
     notes_path = Path("/home/anvo23/projects/perfume-rec/data/catalog_24k_notes.csv")
     official_dir = repo_root / "data" / "official-products"
+    retailer_dir = repo_root / "data" / "retailer-products"
     output_dir = repo_root / "data" / "rag"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -199,20 +213,40 @@ def main() -> None:
     official_paths = sorted(
         path for path in official_dir.glob("*-products.jsonl") if path.is_file()
     )
+    retailer_paths = sorted(
+        path for path in retailer_dir.glob("*-products.jsonl") if path.is_file()
+    )
     for path in official_paths:
         official_index.update(load_official_records(path))
 
-    catalog_docs = build_catalog_docs(catalog_path, notes_index, official_index)
-    official_docs = build_official_docs(official_paths)
+    if catalog_path.exists():
+        catalog_docs = build_catalog_docs(catalog_path, notes_index, official_index)
+        base_docs: list[dict] = []
+    else:
+        catalog_docs = load_jsonl_docs(output_dir / "perfume-documents.jsonl")
+        base_docs = catalog_docs
+    official_docs = build_official_docs(official_paths + retailer_paths)
     output_path = output_dir / "perfume-documents.jsonl"
 
+    merged_docs: dict[str, dict] = {}
+    ordered_ids: list[str] = []
+    for row in base_docs + catalog_docs + official_docs:
+        doc_id = row.get("doc_id")
+        if not doc_id:
+            continue
+        if doc_id not in merged_docs:
+            ordered_ids.append(doc_id)
+        merged_docs[doc_id] = row
+
     with output_path.open("w", encoding="utf-8") as handle:
-        for row in catalog_docs + official_docs:
+        for doc_id in ordered_ids:
+            row = merged_docs[doc_id]
             handle.write(json.dumps(row, ensure_ascii=True) + "\n")
 
     manifest = {
         "catalog_docs": len(catalog_docs),
         "official_docs": len(official_docs),
+        "merged_docs": len(ordered_ids),
         "output_path": str(output_path),
     }
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
