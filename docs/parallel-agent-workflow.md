@@ -2,6 +2,8 @@
 
 This repo can be worked on by two GPT agents in parallel if each agent has its own git worktree and a clear file ownership boundary.
 
+The live status board is the app page at `/board`, backed by the shared file `/Users/anvo/.codex/memories/freshlinen-agent-board.json`.
+
 ## Worktree Layout
 
 Use three checkouts:

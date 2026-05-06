@@ -8,6 +8,7 @@ import { useApp } from "@/lib/context";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
+  { href: "/board", label: "Board" },
   { href: "/today", label: "Today" },
   { href: "/explore", label: "Explore" },
   { href: "/build", label: "Build" },
