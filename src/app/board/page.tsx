@@ -1,40 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import Link from "next/link";
 
-type BoardItem = {
-  task: string;
-  owner: string;
-  branch?: string;
-  status: string;
-  notes: string;
-  commit?: string;
-};
-
-type BoardData = {
-  title: string;
-  subtitle: string;
-  worktrees: Array<{
-    agent: string;
-    branch: string;
-    worktree: string;
-    status: string;
-  }>;
-  active: BoardItem[];
-  backlog: BoardItem[];
-  done: BoardItem[];
-};
-
-async function loadBoard(): Promise<BoardData> {
-  const sharedPath = "/Users/anvo/.codex/memories/freshlinen-agent-board.json";
-  const fallbackPath = join(process.cwd(), "data", "agent-board.json");
-  let raw: string;
-  try {
-    raw = await readFile(sharedPath, "utf8");
-  } catch {
-    raw = await readFile(fallbackPath, "utf8");
-  }
-  return JSON.parse(raw) as BoardData;
-}
+import { loadBoard, slugifyTask, type BoardItem } from "@/lib/agent-board";
 
 function StatusPill({ status }: { status: string }) {
   const tone =
@@ -67,7 +33,11 @@ function SectionCard({
           <div key={`${item.task}-${item.owner}`} className="px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-violet-900">{item.task}</h3>
+                <h3 className="font-semibold text-violet-900">
+                  <Link className="hover:underline" href={`/board/${slugifyTask(item.task)}`}>
+                    {item.task}
+                  </Link>
+                </h3>
                 <p className="mt-1 text-sm text-violet-500">
                   Owner: <span className="font-medium text-violet-700">{item.owner}</span>
                   {item.branch ? (
@@ -105,6 +75,11 @@ export default async function BoardPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-500">Parallel work</p>
             <h1 className="mt-2 text-4xl md:text-5xl font-black text-violet-950">{board.title}</h1>
             <p className="mt-3 max-w-2xl text-base md:text-lg text-violet-700">{board.subtitle}</p>
+            {board.updated_at ? (
+              <p className="mt-3 text-xs text-violet-400">
+                Updated at <span className="font-mono">{board.updated_at}</span>
+              </p>
+            ) : null}
           </div>
           <div className="rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-medium text-violet-700 shadow-sm">
             Live board backed by <span className="font-mono text-violet-900">/Users/anvo/.codex/memories/freshlinen-agent-board.json</span>
@@ -124,6 +99,10 @@ export default async function BoardPage() {
               <p className="break-all text-sm text-violet-800">{worktree.worktree}</p>
             </div>
           ))}
+        </div>
+
+        <div className="mt-2 text-sm text-violet-500">
+          Agents update the shared board through <span className="font-mono text-violet-700">scripts/agent-board.py</span> with `claim`, `ready`, and `done`. The web page is read-only.
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">

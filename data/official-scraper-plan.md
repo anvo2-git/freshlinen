@@ -18,8 +18,8 @@ The first execution wave targets:
 
 The next wave expands that fixed list into a two-step pipeline:
 
-1. discover candidate perfume houses from Fragrantica home/news plus the current registry
-2. keep a curated niche-heavy shortlist as the primary scrape queue, then fall back to Fragrantica search or registry entries when a house URL is missing
+1. do a one-time house discovery pass from Fragrantica home/news plus the current registry
+2. freeze that house queue, then assign each agent one house at a time for end-to-end scraping
 
 The current working shortlist lives in `data/house-shortlist.csv` and is the source of truth for the next scrape pass. It currently focuses on roughly 50 niche houses. The exploratory output in `data/house-candidates.csv` is kept only as a discovery aid.
 For perfume discovery, always filter new Fragrantica/retailer candidates against the existing corpus in `data/rag/perfume-documents.jsonl` before scraping so we do not overscrape perfumes we already have.
@@ -86,7 +86,7 @@ Use brand-specific collection pages first, then crawl product detail pages.
 
 ### Phase 2b: House discovery strategy
 
-Build a candidate list before scraping:
+Build a candidate list once before scraping:
 
 1. Pull prominent brands from Fragrantica's home page.
 2. Pull active release mentions from Fragrantica news.
@@ -99,6 +99,7 @@ Build a candidate list before scraping:
 5. Sample the exploratory discovery output when you want to widen the queue later.
 
 This avoids over-sampling only the biggest catalog houses.
+Do not rerun house discovery in parallel for each house scrape; use the frozen queue as input for the house-specific tasks.
 
 For the actual scrape queue, prefer the curated shortlist over the exploratory dump:
 
@@ -141,7 +142,7 @@ Run in this order:
   - highest volume among fetchable targets
   - likely messier front-end behavior, but worth it once the pipeline is stable
 
-For the balanced discovery queue, keep the first pass small and inspect the resulting mix before scaling the limit upward.
+For the balanced discovery queue, keep the one-time first pass small, inspect the resulting mix, and then freeze the list before house-level scraping begins.
 
 ### Phase 6: Definition of done
 
@@ -189,6 +190,15 @@ For note-heavy enrichment, prefer this order:
 4. Official brand pages when they explicitly list notes
 5. Retailers like Sephora or Ulta when they expose key notes
 6. Descriptions and tags only as a last resort
+
+## Discovery Source Priority
+
+For queue-building, prefer this order:
+
+1. Fragrantica for house discovery
+2. Fragrantica for perfume discovery within each house, prioritizing current and popular perfumes
+3. Retailer or brand-site discovery only when Fragrantica is incomplete
+4. Corpus-aware filtering before any scrape run
 
 The implementation now runs a notes enrichment pass automatically after each house scrape and keeps only high-confidence matches, so the output prefers correctness over overfitting search results.
 

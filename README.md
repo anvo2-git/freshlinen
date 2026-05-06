@@ -16,9 +16,9 @@ This repository currently contains the Week 6 v1 build:
 - automatic notes enrichment that prefers catalog-mapped Fragrantica pages
 - a corpus builder that merges catalog and official enrichment data
 - a local SQLite FTS retrieval script for natural-language perfume queries
-- a live parallel-agent board at `/board`, backed by a shared file outside the worktrees
+- a live parallel-agent board at `/board`, backed by a shared file outside the worktrees and updated by `scripts/agent-board.py` using `claim` / `ready` / `done`
 
-For parallel work, see the app board at `/board` and the workflow notes in [docs/parallel-agent-workflow.md](/Users/anvo/dev/school/freshlinen/docs/parallel-agent-workflow.md).
+For parallel work, see the app board at `/board`, the update CLI `scripts/agent-board.py`, the workflow notes in [docs/parallel-agent-workflow.md](/Users/anvo/dev/school/freshlinen/docs/parallel-agent-workflow.md), the board-item blueprint in [docs/board-item-blueprint.md](/Users/anvo/dev/school/freshlinen/docs/board-item-blueprint.md), and the scraping handoff cards in [docs/scrape-task-breakdown.md](/Users/anvo/dev/school/freshlinen/docs/scrape-task-breakdown.md).
 
 ## v1 scope
 

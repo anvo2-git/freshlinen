@@ -3,6 +3,19 @@
 This repo can be worked on by two GPT agents in parallel if each agent has its own git worktree and a clear file ownership boundary.
 
 The live status board is the app page at `/board`, backed by the shared file `/Users/anvo/.codex/memories/freshlinen-agent-board.json`.
+Agents update that board through `scripts/agent-board.py`. The web page is read-only.
+For detailed task handoffs, use [docs/scrape-task-breakdown.md](/Users/anvo/dev/school/freshlinen/docs/scrape-task-breakdown.md).
+For writing a self-contained board item, use [docs/board-item-blueprint.md](/Users/anvo/dev/school/freshlinen/docs/board-item-blueprint.md).
+
+## Board Lifecycle
+
+Agents own task status updates end-to-end:
+
+- `claim` when a task is assigned and work starts
+- `ready` when the work is complete and ready to be pushed or merged
+- `done` after the change has landed
+
+The user should not manually move task status during normal work.
 
 ## Worktree Layout
 
