@@ -17,6 +17,8 @@ This repository currently contains the Week 6 v1 build:
 - a corpus builder that merges catalog and official enrichment data
 - a local SQLite FTS retrieval script for natural-language perfume queries
 
+For parallel work, see [docs/agent-board.md](/Users/anvo/dev/school/freshlinen/docs/agent-board.md).
+
 ## v1 scope
 
 The current v1 focuses on getting an end-to-end retrieval workflow working before adding a full LLM-backed answer generation service.
