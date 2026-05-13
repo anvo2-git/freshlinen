@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
-import fs from "fs";
-import path from "path";
+import {
+  canonicalDocKey,
+  loadCorpus,
+  loadManifest,
+  resolveJudgmentDocs,
+} from "./rag-benchmark-common.mjs";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const DEFAULT_FAIL_UNDER = 0.7;
-const MANIFEST_PATH = path.join(process.cwd(), "data", "rag", "eval-manifest.json");
 
 function parseArgs(argv) {
   const args = {
@@ -42,27 +45,9 @@ function printHelpAndExit() {
   process.exit(0);
 }
 
-function normalize(value) {
-  return String(value)
-    .toLowerCase()
-    .replace(/['’`-]/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function loadManifest() {
-  if (!fs.existsSync(MANIFEST_PATH)) {
-    throw new Error(`Missing eval manifest: ${MANIFEST_PATH}`);
-  }
-  return JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
-}
-
 function resultSearchText(result) {
-  return normalize(
+  return `${canonicalDocKey(result)} ${
     [
-      result.brand,
-      result.name,
       result.source_type,
       result.rating_value,
       result.rating_count,
@@ -71,28 +56,18 @@ function resultSearchText(result) {
       ...(result.notes || []),
       result.snippet,
     ].join(" ")
-  );
+  }`;
 }
 
 function matchesJudgment(result, judgment) {
-  const brand = normalize(judgment.brand);
-  const name = normalize(judgment.name);
-  const aliases = Array.isArray(judgment.aliases) ? judgment.aliases.map(normalize) : [];
-  const text = normalize(`${result.brand} ${result.name}`);
-
-  const directMatch =
-    text.includes(brand) && text.includes(name) ||
-    normalize(result.brand) === brand &&
-      (normalize(result.name).includes(name) || name.includes(normalize(result.name)));
-
-  if (directMatch) return true;
-
-  return aliases.some((alias) => text.includes(alias));
+  const acceptedDocnos = Array.isArray(judgment.resolved_docnos) ? judgment.resolved_docnos : [];
+  const resultDocnos = [result.url, result.official_url].filter(Boolean);
+  return resultDocnos.some((docno) => acceptedDocnos.includes(docno));
 }
 
 function matchesTerms(result, terms) {
   const text = resultSearchText(result);
-  return terms.every((term) => text.includes(normalize(term)));
+  return terms.every((term) => text.includes(term.toLowerCase()));
 }
 
 function scoreCase(results, testCase, defaults) {
@@ -170,11 +145,21 @@ function formatResult(result) {
 async function main() {
   const { baseUrl, failUnder, json, output } = parseArgs(process.argv);
   const manifest = loadManifest();
+  const corpus = loadCorpus();
   const cases = Array.isArray(manifest.cases) ? manifest.cases : [];
+  const preparedCases = cases.map((testCase) => ({
+    ...testCase,
+    judgments: Array.isArray(testCase.judgments)
+      ? testCase.judgments.map((judgment) => ({
+          ...judgment,
+          resolved_docnos: resolveJudgmentDocs(corpus, judgment).map((doc) => doc.url),
+        }))
+      : [],
+  }));
   const defaults = manifest.defaults || {};
   const summary = {
     baseUrl,
-    total: cases.length,
+    total: preparedCases.length,
     passed: 0,
     exactPassed: 0,
     vibePassed: 0,
@@ -184,7 +169,28 @@ async function main() {
     results: [],
   };
 
-  for (const testCase of cases) {
+  const unresolvedJudgments = [];
+  for (const testCase of preparedCases) {
+    for (const judgment of testCase.judgments ?? []) {
+      if (testCase.success_policy === "manual_review") continue;
+      if ((judgment.resolved_docnos ?? []).length === 0) {
+        unresolvedJudgments.push({
+          caseId: testCase.id,
+          judgment: `${judgment.brand} | ${judgment.name}`,
+        });
+      }
+    }
+  }
+
+  if (unresolvedJudgments.length > 0) {
+    throw new Error(
+      `Unresolved benchmark judgments: ${unresolvedJudgments
+        .map((item) => `${item.caseId}:${item.judgment}`)
+        .join(", ")}`
+    );
+  }
+
+  for (const testCase of preparedCases) {
     const url = `${baseUrl.replace(/\/$/, "")}/api/rag/query?q=${encodeURIComponent(testCase.query)}&limit=${testCase.target_rank ?? defaults.target_rank ?? 5}`;
     const response = await fetch(url);
     if (!response.ok) {
@@ -205,9 +211,9 @@ async function main() {
     }
   }
 
-  const scoredCases = cases.filter((item) => item.success_policy !== "manual_review").length || 1;
+  const scoredCases = preparedCases.filter((item) => item.success_policy !== "manual_review").length || 1;
   const overall = summary.score / scoredCases;
-  const intentCounts = cases.reduce((acc, item) => {
+  const intentCounts = preparedCases.reduce((acc, item) => {
     const key = item.intent || "unknown";
     acc[key] = (acc[key] || 0) + 1;
     return acc;

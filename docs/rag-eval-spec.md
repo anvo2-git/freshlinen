@@ -221,6 +221,11 @@ When judging a perfume result, consider:
 - strength of the scent-vibe match
 - whether the result is a valid alternative or just a keyword echo
 
+Gold-standard judgments should resolve to canonical corpus documents. For this
+project, that means the exported qrels should use corpus URLs as docno values,
+and every non-manual-review judgment should map to at least one real corpus row
+before it is accepted.
+
 Avoid judging by brand prestige alone.
 
 ### 5.3 Ties and aliases
@@ -383,6 +388,9 @@ Recommended fields:
 - `hardness`
 - `notes`
 
+For `relevant_docs`, prefer canonical corpus doc identifiers, ideally the exact
+URLs exported into `data/rag/eval.qrels`.
+
 Recommended result fields:
 
 - `rank`
@@ -401,4 +409,3 @@ Recommended result fields:
 - Perfume recommendation metrics: [Personalized Perfume Recommendations Based on User Descriptions Using Cosine and Jaccard Similarity](https://www.sciencedirect.com/science/article/pii/S1877050925027127)
 - Olfactory language difficulty: [The language of scents](https://www.nature.com/articles/s41599-026-07494-4)
 - Incomplete relevance judgments: [Sakai & Kando 2008](https://link.springer.com/article/10.1007/s10791-008-9059-7)
-

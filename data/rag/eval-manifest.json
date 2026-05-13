@@ -26,8 +26,7 @@
       "min_grade": 3,
       "success_policy": "top1",
       "judgments": [
-        { "brand": "Xerjoff", "name": "XJ 1861 Naxos", "grade": 3 },
-        { "brand": "Xerjoff", "name": "Naxos", "grade": 3 }
+        { "brand": "Xerjoff", "name": "XJ 1861 Naxos", "grade": 3 }
       ]
     },
     {
@@ -88,8 +87,8 @@
       "success_policy": "any",
       "required_terms": ["fresh", "woody"],
       "judgments": [
-        { "brand": "To Summer", "name": "Cedarwood", "grade": 3 },
-        { "brand": "Maison Francis Kurkdjian", "name": "Baccarat Rouge 540", "grade": 1 }
+        { "brand": "Creed", "name": "Aventus Cologne", "grade": 3 },
+        { "brand": "Xerjoff", "name": "Torino21", "grade": 2 }
       ]
     },
     {
@@ -271,7 +270,6 @@
       "min_grade": 3,
       "success_policy": "top1",
       "judgments": [
-        { "brand": "Viktor & Rolf", "name": "Spicebomb Extreme", "grade": 3 },
         { "brand": "Viktor Rolf", "name": "Spicebomb Extreme", "grade": 3 }
       ]
     },
@@ -283,8 +281,7 @@
       "min_grade": 3,
       "success_policy": "top1",
       "judgments": [
-        { "brand": "Parfums de Marly", "name": "DELINA EXCLUSIF", "grade": 3 },
-        { "brand": "Parfums de Marly", "name": "Delina Exclusif", "grade": 3 }
+        { "brand": "Parfums de Marly", "name": "DELINA EXCLUSIF", "grade": 3 }
       ]
     },
     {

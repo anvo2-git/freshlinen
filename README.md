@@ -70,6 +70,8 @@ The in-app retrieval UI is available at `/rag`, and the JSON endpoint is `GET /a
 Run `npm run rag-eval` after starting the app to score the fixed RAG query set against the live endpoint.
 The machine-readable benchmark cases live at `data/rag/eval-manifest.json`.
 The exported qrels/topics files live at `data/rag/eval.qrels` and `data/rag/eval-topics.tsv`.
+The qrels use canonical corpus URLs as docno identifiers, so the benchmark stays
+anchored to real corpus rows instead of fuzzy name matches.
 The latest saved run for the dashboard lives at `data/rag/eval-latest.json`.
 
 ## Data outputs
