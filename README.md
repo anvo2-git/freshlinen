@@ -66,6 +66,7 @@ python3 scripts/query-rag.py "woody winter vanilla" --limit 5
 
 The in-app retrieval UI is available at `/rag`, and the JSON endpoint is `GET /api/rag/query?q=...&limit=...`.
 Run `npm run rag-eval` after starting the app to score the fixed RAG query set against the live endpoint.
+The machine-readable benchmark cases live at `data/rag/eval-manifest.json`.
 
 ## Data outputs
 

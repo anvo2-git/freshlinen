@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "description": "Perfume retrieval benchmark for the first-pass FreshLinen RAG. Cases are grouped by intent and scored with graded relevance under incomplete judgments.",
+  "defaults": {
+    "target_rank": 5,
+    "min_grade": 2,
+    "success_policy": "any"
+  },
+  "cases": [
+    {
+      "id": "layton",
+      "intent": "exact_lookup",
+      "query": "Layton",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Parfums de Marly", "name": "LAYTON", "grade": 3 }
+      ]
+    },
+    {
+      "id": "naxos",
+      "intent": "exact_lookup",
+      "query": "Xerjoff Naxos",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Xerjoff", "name": "XJ 1861 Naxos", "grade": 3 },
+        { "brand": "Xerjoff", "name": "Naxos", "grade": 3 }
+      ]
+    },
+    {
+      "id": "sauvage",
+      "intent": "exact_lookup",
+      "query": "Dior Sauvage",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Dior", "name": "Sauvage", "grade": 3 }
+      ]
+    },
+    {
+      "id": "black-orchid",
+      "intent": "exact_lookup",
+      "query": "Tom Ford Black Orchid",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Tom Ford", "name": "Black Orchid", "grade": 3 }
+      ]
+    },
+    {
+      "id": "smoky-vanilla",
+      "intent": "vibe_search",
+      "query": "smoky vanilla winter",
+      "target_rank": 3,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["smoky", "vanilla"],
+      "judgments": [
+        { "brand": "Trend Perfumes", "name": "Smoky Vanilla", "grade": 3 },
+        { "brand": "Vivamor Parfums", "name": "Vanilla Vice", "grade": 2 },
+        { "brand": "Coty", "name": "Vanilla Fields Winter", "grade": 2 }
+      ]
+    },
+    {
+      "id": "rose-oud-incense",
+      "intent": "vibe_search",
+      "query": "rose oud incense",
+      "target_rank": 3,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["rose", "oud", "incense"],
+      "judgments": [
+        { "brand": "By Kilian", "name": "Incense Oud", "grade": 3 },
+        { "brand": "Amouage", "name": "Lyric Man", "grade": 2 }
+      ]
+    },
+    {
+      "id": "fresh-woody",
+      "intent": "vibe_search",
+      "query": "fresh woody summer",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["fresh", "woody"],
+      "judgments": [
+        { "brand": "To Summer", "name": "Cedarwood", "grade": 3 },
+        { "brand": "Maison Francis Kurkdjian", "name": "Baccarat Rouge 540", "grade": 1 }
+      ]
+    },
+    {
+      "id": "citrus-musk",
+      "intent": "vibe_search",
+      "query": "citrus musk cedar",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["citrus", "musk", "cedar"],
+      "judgments": [
+        { "brand": "Chris Collins", "name": "Citrus Grandis", "grade": 3 },
+        { "brand": "Bath & Body Works", "name": "Citrus & Cedar Cologne Mist", "grade": 3 }
+      ]
+    },
+    {
+      "id": "powdery-iris",
+      "intent": "vibe_search",
+      "query": "powdery iris",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["iris", "powdery"],
+      "judgments": [
+        { "brand": "Zara", "name": "Romance d'Iris", "grade": 3 },
+        { "brand": "Prada", "name": "Infusion d'Iris", "grade": 3 }
+      ]
+    },
+    {
+      "id": "new-amber",
+      "intent": "filter_search",
+      "query": "new fragrance amber",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["amber"],
+      "judgments": [
+        { "brand": "Bahfamsn Fragrance", "name": "Amber Ora", "grade": 3 },
+        { "brand": "Xerjoff", "name": "1888", "grade": 2 }
+      ]
+    },
+    {
+      "id": "layton-vs-herod",
+      "intent": "comparison",
+      "query": "Layton vs Herod",
+      "target_rank": 5,
+      "min_grade": 3,
+      "success_policy": "all",
+      "judgments": [
+        { "brand": "Parfums de Marly", "name": "LAYTON", "grade": 3 },
+        { "brand": "Parfums de Marly", "name": "HEROD", "grade": 3 }
+      ]
+    },
+    {
+      "id": "naxos-vs-layton",
+      "intent": "comparison",
+      "query": "Xerjoff Naxos vs Layton",
+      "target_rank": 5,
+      "min_grade": 3,
+      "success_policy": "all",
+      "judgments": [
+        { "brand": "Xerjoff", "name": "XJ 1861 Naxos", "grade": 3 },
+        { "brand": "Parfums de Marly", "name": "LAYTON", "grade": 3 }
+      ]
+    },
+    {
+      "id": "best-perfume-ever",
+      "intent": "negative_abstain",
+      "query": "best perfume ever",
+      "target_rank": 5,
+      "min_grade": 0,
+      "success_policy": "manual_review",
+      "manual_review": true,
+      "notes": "Intentionally vague. Used to check whether the retriever over-commits to weak matches."
+    },
+    {
+      "id": "conflicting-vibe",
+      "intent": "negative_abstain",
+      "query": "fresh smoky aquatic leather",
+      "target_rank": 5,
+      "min_grade": 0,
+      "success_policy": "manual_review",
+      "manual_review": true,
+      "notes": "Conflicting style constraints. Used to check graceful degradation."
+    }
+  ]
+}
