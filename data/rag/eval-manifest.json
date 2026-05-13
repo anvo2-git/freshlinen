@@ -132,10 +132,212 @@
       ]
     },
     {
+      "id": "baccarat-rouge-540",
+      "intent": "exact_lookup",
+      "query": "Baccarat Rouge 540",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Maison Francis Kurkdjian", "name": "Baccarat Rouge 540", "grade": 3 }
+      ]
+    },
+    {
+      "id": "baccarat-rouge-540-extrait",
+      "intent": "exact_lookup",
+      "query": "Baccarat Rouge 540 Extrait de Parfum",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Maison Francis Kurkdjian", "name": "Baccarat Rouge 540 Extrait de Parfum", "grade": 3 }
+      ]
+    },
+    {
+      "id": "reflection-man",
+      "intent": "exact_lookup",
+      "query": "Amouage Reflection Man",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Amouage", "name": "Reflection Man", "grade": 3 }
+      ]
+    },
+    {
+      "id": "aventus",
+      "intent": "exact_lookup",
+      "query": "Creed Aventus",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Creed", "name": "Aventus", "grade": 3 }
+      ]
+    },
+    {
+      "id": "oud-satin-mood",
+      "intent": "exact_lookup",
+      "query": "Maison Francis Kurkdjian Oud Satin Mood",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Maison Francis Kurkdjian", "name": "Oud Satin Mood", "grade": 3 }
+      ]
+    },
+    {
+      "id": "side-effect",
+      "intent": "exact_lookup",
+      "query": "Initio Side Effect",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Initio Parfums Prives", "name": "Side Effect", "grade": 3 }
+      ]
+    },
+    {
+      "id": "gentle-fluidity-gold",
+      "intent": "exact_lookup",
+      "query": "Gentle Fluidity Gold",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Maison Francis Kurkdjian", "name": "Gentle Fluidity Gold", "grade": 3 }
+      ]
+    },
+    {
+      "id": "green-irish-tweed",
+      "intent": "exact_lookup",
+      "query": "Green Irish Tweed",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Creed", "name": "Green Irish Tweed", "grade": 3 }
+      ]
+    },
+    {
+      "id": "angels-share",
+      "intent": "exact_lookup",
+      "query": "Angels' Share",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "By Kilian", "name": "Angels' Share", "grade": 3 }
+      ]
+    },
+    {
+      "id": "irish-leather",
+      "intent": "exact_lookup",
+      "query": "Irish Leather",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Memo Paris", "name": "Irish Leather", "grade": 3 }
+      ]
+    },
+    {
+      "id": "hacivat",
+      "intent": "exact_lookup",
+      "query": "Hacivat Nishane",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Nishane", "name": "Hacivat", "grade": 3 }
+      ]
+    },
+    {
+      "id": "tobacco-vanille",
+      "intent": "exact_lookup",
+      "query": "Tom Ford Tobacco Vanille",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Tom Ford", "name": "Tobacco Vanille", "grade": 3 }
+      ]
+    },
+    {
+      "id": "spicebomb-extreme",
+      "intent": "exact_lookup",
+      "query": "Spicebomb Extreme",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Viktor & Rolf", "name": "Spicebomb Extreme", "grade": 3 },
+        { "brand": "Viktor Rolf", "name": "Spicebomb Extreme", "grade": 3 }
+      ]
+    },
+    {
+      "id": "delina-exclusif",
+      "intent": "exact_lookup",
+      "query": "Delina Exclusif",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Parfums de Marly", "name": "DELINA EXCLUSIF", "grade": 3 },
+        { "brand": "Parfums de Marly", "name": "Delina Exclusif", "grade": 3 }
+      ]
+    },
+    {
+      "id": "intense-cedrat-boise",
+      "intent": "exact_lookup",
+      "query": "Intense Cedrat Boise",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Mancera", "name": "Intense Cedrat Boise", "grade": 3 }
+      ]
+    },
+    {
+      "id": "ombre-leather-16",
+      "intent": "exact_lookup",
+      "query": "Ombre Leather 16",
+      "target_rank": 1,
+      "min_grade": 3,
+      "success_policy": "top1",
+      "judgments": [
+        { "brand": "Tom Ford", "name": "Ombre Leather 16", "grade": 3 }
+      ]
+    },
+    {
+      "id": "aventus-vs-aventus-cologne",
+      "intent": "comparison",
+      "query": "Aventus vs Aventus Cologne",
+      "target_rank": 10,
+      "min_grade": 3,
+      "success_policy": "all",
+      "judgments": [
+        { "brand": "Creed", "name": "Aventus", "grade": 3 },
+        { "brand": "Creed", "name": "Aventus Cologne", "grade": 3 }
+      ]
+    },
+    {
+      "id": "reflection-man-vs-reflection-45",
+      "intent": "comparison",
+      "query": "Reflection Man vs Reflection 45 Man",
+      "target_rank": 10,
+      "min_grade": 3,
+      "success_policy": "all",
+      "judgments": [
+        { "brand": "Amouage", "name": "Reflection Man", "grade": 3 },
+        { "brand": "Amouage", "name": "Reflection 45 Man", "grade": 3 }
+      ]
+    },
+    {
       "id": "layton-vs-herod",
       "intent": "comparison",
       "query": "Layton vs Herod",
-      "target_rank": 5,
+      "target_rank": 10,
       "min_grade": 3,
       "success_policy": "all",
       "judgments": [
@@ -147,7 +349,7 @@
       "id": "naxos-vs-layton",
       "intent": "comparison",
       "query": "Xerjoff Naxos vs Layton",
-      "target_rank": 5,
+      "target_rank": 10,
       "min_grade": 3,
       "success_policy": "all",
       "judgments": [

@@ -51,6 +51,14 @@ interface IndexedDocument {
   qualityScore: number;
 }
 
+interface QueryIntent {
+  isComparison: boolean;
+  isAlternative: boolean;
+  isExactLookup: boolean;
+  isNegative: boolean;
+  parts: string[];
+}
+
 const STOP_WORDS = new Set([
   "a",
   "an",
@@ -220,10 +228,49 @@ function buildSnippet(text: string, terms: string[], fallback: string): string {
   return `${prefix}${text.slice(start, end).trim()}${suffix}`;
 }
 
+function parseQueryIntent(query: string): QueryIntent {
+  const normalized = normalize(query);
+  const isComparison =
+    /\bvs\b/.test(normalized) ||
+    /\bversus\b/.test(normalized) ||
+    /\bcompare\b/.test(normalized);
+  const isAlternative =
+    /\balternatives?\b/.test(normalized) ||
+    /\bsimilar to\b/.test(normalized) ||
+    /\blike\b/.test(normalized);
+  const isNegative =
+    /\bbest perfume ever\b/.test(normalized) ||
+    /\bimpossible\b/.test(normalized) ||
+    /\bconflicting\b/.test(normalized);
+  const isExactLookup = !isComparison && !isAlternative && tokenize(query).length <= 3;
+  const parts = isComparison
+    ? normalized
+        .split(/\b(?:vs|versus|compare)\b/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+    : [normalized];
+
+  return {
+    isComparison,
+    isAlternative,
+    isExactLookup,
+    isNegative,
+    parts,
+  };
+}
+
+function splitQueryParts(query: string): string[] {
+  return normalize(query)
+    .split(/\b(?:vs|versus|compare)\b/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function queryRag(query: string, limit = 5): RagQueryResponse {
   const { docs, indexed } = loadCorpus();
   const normalizedQuery = normalize(query);
   const terms = uniq(tokenize(query));
+  const intent = parseQueryIntent(query);
   const maxResults = Math.max(1, Math.min(limit, 20));
 
   if (!normalizedQuery || terms.length === 0) {
@@ -236,10 +283,11 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
     };
   }
 
-  const results = indexed
+  const scoredResults = indexed
     .map((entry) => {
       let score = 0;
       const matchedTerms: string[] = [];
+      const comparisonPartHits: number[] = [];
 
       for (const term of terms) {
         let hit = false;
@@ -279,6 +327,47 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
         score += 10;
       }
 
+      if (intent.isComparison) {
+        const queryParts = splitQueryParts(query);
+        queryParts.forEach((part, partIndex) => {
+          const partTerms = uniq(tokenize(part));
+          if (part && entry.searchText.includes(part)) {
+            score += 28;
+            comparisonPartHits.push(partIndex);
+          }
+          if (partTerms.every((term) => entry.searchText.includes(term))) {
+            score += 10;
+            matchedTerms.push(...partTerms);
+            comparisonPartHits.push(partIndex);
+          }
+          if (normalize(entry.titleText).includes(part)) {
+            score += 18;
+            comparisonPartHits.push(partIndex);
+          }
+          if (partTerms.some((term) => entry.titleText.includes(term))) {
+            score += 6;
+          }
+        });
+
+        const lowerName = entry.titleText;
+        const strongBrandNameHit =
+          queryParts.some((part) => lowerName.includes(normalize(part))) ||
+          queryParts.some((part) => entry.searchText.includes(normalize(part)));
+        if (strongBrandNameHit) {
+          score += 12;
+        }
+      }
+
+      if (intent.isAlternative) {
+        score += 4;
+      }
+      if (intent.isExactLookup) {
+        score += 2;
+      }
+      if (intent.isNegative) {
+        score -= 2;
+      }
+
       const coverage = matchedTerms.length / terms.length;
       score += coverage * 20;
       score += entry.qualityScore * 0.75;
@@ -288,6 +377,7 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
         score,
         matchedTerms: uniq(matchedTerms),
         qualityScore: entry.qualityScore,
+        comparisonPartHits: uniq(comparisonPartHits),
       };
     })
     .filter((row) => row.score > 0)
@@ -298,8 +388,7 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
       }
       return b.qualityScore - a.qualityScore;
     })
-    .slice(0, maxResults)
-    .map(({ doc, score, matchedTerms, qualityScore }) => ({
+    .map(({ doc, score, matchedTerms, qualityScore, comparisonPartHits }) => ({
       doc_id: doc.doc_id,
       source_type: doc.source_type,
       brand: doc.brand,
@@ -320,7 +409,29 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
         `${doc.brand} - ${doc.name}`
       ),
       quality_score: qualityScore,
+      comparison_part_hits: comparisonPartHits,
     }));
+
+  let results = scoredResults;
+  if (intent.isComparison && intent.parts.length > 1) {
+    const prioritized: typeof scoredResults = [];
+    const used = new Set<string>();
+
+    for (let partIndex = 0; partIndex < intent.parts.length; partIndex += 1) {
+      const candidate = scoredResults.find(
+        (row) => row.comparison_part_hits.includes(partIndex) && !used.has(row.doc_id)
+      );
+      if (candidate) {
+        prioritized.push(candidate);
+        used.add(candidate.doc_id);
+      }
+    }
+
+    prioritized.push(...scoredResults.filter((row) => !used.has(row.doc_id)));
+    results = prioritized;
+  }
+
+  results = results.slice(0, maxResults);
 
   return {
     query,

@@ -18,6 +18,7 @@ This repository currently contains the Week 6 v1 build:
 - a local SQLite FTS retrieval script for natural-language perfume queries
 - a first-pass RAG endpoint and UI at `/api/rag/query` and `/rag`
 - a small RAG evaluation harness via `npm run rag-eval`
+- standard IR benchmark exports via `npm run rag-export`
 - a live parallel-agent board at `/board`, backed by a shared file outside the worktrees and updated by `scripts/agent-board.py` using `claim` / `ready` / `done`
 
 For parallel work, see the app board at `/board`, the update CLI `scripts/agent-board.py`, the workflow notes in [docs/parallel-agent-workflow.md](/Users/anvo/dev/school/freshlinen/docs/parallel-agent-workflow.md), the board-item blueprint in [docs/board-item-blueprint.md](/Users/anvo/dev/school/freshlinen/docs/board-item-blueprint.md), and the scraping handoff cards in [docs/scrape-task-breakdown.md](/Users/anvo/dev/school/freshlinen/docs/scrape-task-breakdown.md).
@@ -67,6 +68,7 @@ python3 scripts/query-rag.py "woody winter vanilla" --limit 5
 The in-app retrieval UI is available at `/rag`, and the JSON endpoint is `GET /api/rag/query?q=...&limit=...`.
 Run `npm run rag-eval` after starting the app to score the fixed RAG query set against the live endpoint.
 The machine-readable benchmark cases live at `data/rag/eval-manifest.json`.
+The exported qrels/topics files live at `data/rag/eval.qrels` and `data/rag/eval-topics.tsv`.
 
 ## Data outputs
 
