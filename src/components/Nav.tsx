@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/board", label: "Board" },
   { href: "/today", label: "Today" },
   { href: "/explore", label: "Explore" },
+  { href: "/rag", label: "RAG" },
   { href: "/build", label: "Build" },
   { href: "/quiz", label: "Quiz" },
   { href: "/info", label: "Info" },

@@ -16,6 +16,7 @@ This repository currently contains the Week 6 v1 build:
 - automatic notes enrichment that prefers catalog-mapped Fragrantica pages
 - a corpus builder that merges catalog and official enrichment data
 - a local SQLite FTS retrieval script for natural-language perfume queries
+- a first-pass RAG endpoint and UI at `/api/rag/query` and `/rag`
 - a live parallel-agent board at `/board`, backed by a shared file outside the worktrees and updated by `scripts/agent-board.py` using `claim` / `ready` / `done`
 
 For parallel work, see the app board at `/board`, the update CLI `scripts/agent-board.py`, the workflow notes in [docs/parallel-agent-workflow.md](/Users/anvo/dev/school/freshlinen/docs/parallel-agent-workflow.md), the board-item blueprint in [docs/board-item-blueprint.md](/Users/anvo/dev/school/freshlinen/docs/board-item-blueprint.md), and the scraping handoff cards in [docs/scrape-task-breakdown.md](/Users/anvo/dev/school/freshlinen/docs/scrape-task-breakdown.md).
@@ -33,6 +34,7 @@ Implemented:
 - Fragrantica-first perfume discovery from the linked 70k catalog
 - RAG corpus generation into `data/rag/perfume-documents.jsonl`
 - local full-text retrieval over the corpus via `scripts/query-rag.py`
+- app-level retrieval via `/rag` backed by `src/lib/rag.ts`
 
 Planned next:
 
@@ -60,6 +62,8 @@ npm run official-scrape
 npm run build-rag
 python3 scripts/query-rag.py "woody winter vanilla" --limit 5
 ```
+
+The in-app retrieval UI is available at `/rag`, and the JSON endpoint is `GET /api/rag/query?q=...&limit=...`.
 
 ## Data outputs
 

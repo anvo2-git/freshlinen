@@ -8,7 +8,7 @@ I took my perfume recommendation web app (in assignment 2) and attached a databa
 - taking a 5-question quiz that maps preferences to accord families.
 - weather + GPS based path.
 
-The recommendation engine works by representing each perfume as a vector of accord weights and ranking candidates by cosine similarity to the user's seed perfumes. A Dirichlet refinement layer sits on top and alters those rankings as users vote thumbs-up or thumbs-down on recommendations. Authenticated users (via Clerk + Supabase) can save favorites that persist across sessions. A "Today's Scent" page uses the browser's geolocation API with an Open-Meteo weather proxy to suggest accords appropriate for current conditions.
+The recommendation engine works by representing each perfume as a vector of accord weights and ranking candidates by cosine similarity to the user's seed perfumes. A Dirichlet refinement layer sits on top and alters those rankings as users vote thumbs-up or thumbs-down on recommendations. Authenticated users (via Clerk + Supabase) can save favorites that persist across sessions. A "Today's Scent" page uses the browser's geolocation API with an Open-Meteo weather proxy to suggest accords appropriate for current conditions. I also added a first-pass RAG layer over the merged perfume corpus, with a `/rag` page and `/api/rag/query` endpoint for lexical retrieval over brand, name, notes, accords, and snippets.
 
 ## 2. What was the hardest technical challenge, and how did you solve it?
 
@@ -22,7 +22,7 @@ Ian: I love that for you Claude, or sorry that happened.
 
 ## 3. What would you do differently or add with more time?
 
-With more time I would replace the static big ass JSON bundle (14 MB served on first load) with a Supabase-backed search endpoint that queries a proper full-text index. The current approach works but forces the client to download the entire catalog before any search can run. I would also wire the frontend to the existing `perfume_notes` Supabase table so personal notes persist across sessions (the schema exists but is not yet connected to the UI), and add aggregated community favorites per perfume. I would also fix it so the Search function is more responsive. Right now it freezes whenever you type in a letter. Also, images of the bottles would be nice. But considering there's no API available this would be hard/impossible :/
+With more time I would replace the static big ass JSON bundle (14 MB served on first load) with a Supabase-backed search endpoint that queries a proper full-text index. The current approach works but forces the client to download the entire catalog before any search can run. I would also wire the frontend to the existing `perfume_notes` Supabase table so personal notes persist across sessions (the schema exists but is not yet connected to the UI), and add aggregated community favorites per perfume. I would also expand the new RAG layer from lexical retrieval into embeddings plus an evaluation harness so I can tell whether the answers are actually better instead of just more complicated. I would also fix it so the Search function is more responsive. Right now it freezes whenever you type in a letter. Also, images of the bottles would be nice. But considering there's no API available this would be hard/impossible :/
 
 
 ## 4. What did you learn about building with external APIs and authentication?
