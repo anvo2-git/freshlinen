@@ -4,8 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import re
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 
@@ -66,6 +65,19 @@ def count_official_rows(official_dir: Path) -> Counter[str]:
     return counts
 
 
+def classify_coverage(corpus_count: int, official_count: int) -> tuple[str, str, float]:
+    if corpus_count <= 0:
+        coverage_ratio = 0.0
+    else:
+        coverage_ratio = official_count / corpus_count
+
+    if official_count >= corpus_count:
+        return "deep", "low", coverage_ratio
+    if official_count * 2 <= corpus_count:
+        return "shallow", "high", coverage_ratio
+    return "balanced", "medium", coverage_ratio
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--shortlist", default="data/house-shortlist.csv")
@@ -87,6 +99,7 @@ def main() -> None:
         reg = registry.get(brand_slug, {})
         corpus_count = corpus_counts.get(brand_slug, 0)
         official_count = official_counts.get(brand_slug, 0)
+        coverage_class, scrape_priority, coverage_ratio = classify_coverage(corpus_count, official_count)
         rows.append(
             {
                 "bucket": house.get("bucket", ""),
@@ -95,6 +108,9 @@ def main() -> None:
                 "corpus_count": str(corpus_count),
                 "official_count": str(official_count),
                 "gap_count": str(max(corpus_count - official_count, 0)),
+                "coverage_ratio": f"{coverage_ratio:.2f}",
+                "coverage_class": coverage_class,
+                "scrape_priority": scrape_priority,
                 "domain_status": reg.get("domain_status", ""),
                 "official_url": reg.get("official_url", house.get("official_url", "")),
                 "scraper_tier": reg.get("scraper_tier", ""),
@@ -104,6 +120,8 @@ def main() -> None:
 
     rows.sort(
         key=lambda row: (
+            {"high": 0, "medium": 1, "low": 2}[row["scrape_priority"]],
+            float(row["coverage_ratio"]),
             int(row["official_count"]),
             -int(row["corpus_count"]),
             row["brand_name"].lower(),
@@ -122,6 +140,9 @@ def main() -> None:
                 "corpus_count",
                 "official_count",
                 "gap_count",
+                "coverage_ratio",
+                "coverage_class",
+                "scrape_priority",
                 "domain_status",
                 "official_url",
                 "scraper_tier",
@@ -133,9 +154,18 @@ def main() -> None:
             writer.writerow(row)
 
     print(f"Wrote {len(rows)} gap rows to {output_path}")
-    for row in rows[:15]:
+    shallow_rows = [row for row in rows if row["coverage_class"] == "shallow"]
+    balanced_rows = [row for row in rows if row["coverage_class"] == "balanced"]
+    deep_rows = [row for row in rows if row["coverage_class"] == "deep"]
+    print(
+        "Coverage mix: "
+        f"shallow={len(shallow_rows)} balanced={len(balanced_rows)} deep={len(deep_rows)}"
+    )
+    print("Shallowest houses:")
+    for row in shallow_rows[:15]:
         print(
-            f"{row['brand_name']}: corpus={row['corpus_count']} official={row['official_count']} "
+            f"{row['brand_name']}: coverage={row['coverage_ratio']} class={row['coverage_class']} "
+            f"corpus={row['corpus_count']} official={row['official_count']} "
             f"gap={row['gap_count']} status={row['domain_status']}"
         )
 

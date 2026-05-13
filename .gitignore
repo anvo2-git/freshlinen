@@ -46,6 +46,7 @@ next-env.d.ts
 
 # generated scraping artifacts
 data/raw/
+data/rag/perfume-documents.jsonl
 data/rag/perfume-fts.db
 
 # clerk configuration (can include secrets)

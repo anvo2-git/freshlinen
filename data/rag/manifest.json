@@ -1,6 +1,6 @@
 {
-  "catalog_docs": 68598,
-  "official_docs": 114,
-  "merged_docs": 68635,
-  "output_path": "/Users/anvo/dev/school/freshlinen/data/rag/perfume-documents.jsonl"
+  "catalog_docs": 68650,
+  "official_docs": 129,
+  "merged_docs": 68650,
+  "output_path": "/Users/anvo/dev/school/freshlinen-scrape/data/rag/perfume-documents.jsonl"
 }

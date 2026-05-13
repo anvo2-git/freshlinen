@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .base import dedupe_rows, write_jsonl
 from .brands.guerlain import GuerlainAdapter
+from .brands.montale import MontaleAdapter
 from .brands.xerjoff import XerjoffAdapter
 from .brands.zara import ZaraAdapter
 from ..note_enrichment import enrich_rows_with_notes
@@ -15,6 +16,7 @@ from ..note_enrichment import enrich_rows_with_notes
 
 ADAPTERS = {
     "guerlain": GuerlainAdapter,
+    "montale": MontaleAdapter,
     "xerjoff": XerjoffAdapter,
     "zara": ZaraAdapter,
 }

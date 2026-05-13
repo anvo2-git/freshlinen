@@ -153,7 +153,11 @@ def enrich_rows_with_notes(output_root: Path, rows: list[dict], limit: int | Non
             str(output_path),
             "--quiet",
         ]
-        subprocess.run(cmd, cwd=repo_root, check=True)
+        try:
+            subprocess.run(cmd, cwd=repo_root, check=True)
+        except subprocess.CalledProcessError as exc:
+            print(f"warning: note enrichment browser launch failed: {exc}")
+            return rows
         note_rows = _load_jsonl(output_path)
 
     notes_by_url = {row.get("resolved_url") or row.get("url", ""): row for row in note_rows if row.get("resolved_url") or row.get("url")}
@@ -195,8 +199,22 @@ def enrich_rows_with_notes(output_root: Path, rows: list[dict], limit: int | Non
                 "notes_source": note_row.get("source", ""),
                 "notes_source_url": note_row.get("resolved_url") or note_row.get("url", ""),
                 "notes_rating_value": note_row.get("rating_value", ""),
+                "notes_rating_count": note_row.get("rating_count", ""),
+                "notes_reviews_count": note_row.get("reviews_count", ""),
+                "notes_meta_description": note_row.get("meta_description", ""),
+                "notes_family": note_row.get("notes_family", ""),
+                "notes_gender": note_row.get("notes_gender", ""),
+                "notes_launch_year": note_row.get("notes_launch_year", ""),
+                "notes_nose": note_row.get("notes_nose", ""),
+                "notes_status_summary": note_row.get("status_summary", {}),
+                "notes_user_status": note_row.get("user_status", {}),
+                "notes_season_scores": note_row.get("season_scores", []),
                 "notes_longevity_value": note_row.get("longevity_value", ""),
+                "notes_longevity_votes": note_row.get("longevity_votes", ""),
                 "notes_sillage_value": note_row.get("sillage_value", ""),
+                "notes_sillage_votes": note_row.get("sillage_votes", ""),
+                "notes_similar_perfumes": note_row.get("similar_perfumes", []),
+                "notes_similar_perfumes_user_votes": note_row.get("similar_perfumes_user_votes", []),
             }
         )
         row["extra"] = extra

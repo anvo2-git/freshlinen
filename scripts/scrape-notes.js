@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
@@ -53,6 +54,16 @@ function extractFirstMatch(text, regex, group = 1) {
   return match ? match[group] : "";
 }
 
+function extractMetaContent(html, name) {
+  return extractFirstMatch(
+    html,
+    new RegExp(
+      `<meta[^>]+(?:name|property)=["']${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'][^>]*content=["']([^"']+)["']`,
+      "i",
+    ),
+  );
+}
+
 function slugify(value) {
   return String(value || "")
     .trim()
@@ -62,7 +73,198 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function extractFragrantica(html) {
+function md5Hex(value) {
+  return crypto.createHash("md5").update(value).digest("hex");
+}
+
+function deriveFragranticaPassphrase(host) {
+  const value = String(host || "www.fragrantica.com").trim() || "www.fragrantica.com";
+  const reversed = value.split("").reverse().join("");
+  let interleaved = "";
+  for (let i = 0; i < value.length; i += 1) {
+    interleaved += value[i] + reversed[i];
+  }
+  let transformed = "";
+  for (let i = 0; i < interleaved.length; i += 1) {
+    transformed += String.fromCharCode((interleaved.charCodeAt(i) ^ ((7 * i + 13) & 127)) & 127);
+  }
+  const first = md5Hex(transformed);
+  const second = md5Hex(value + first.slice(0, 8));
+  return md5Hex(first + second);
+}
+
+function evpBytesToKey(passphrase, salt, keyLength = 32, ivLength = 16) {
+  const passBuffer = Buffer.isBuffer(passphrase) ? passphrase : Buffer.from(String(passphrase), "utf8");
+  const saltBuffer = Buffer.isBuffer(salt) ? salt : Buffer.from(String(salt || ""), "hex");
+  let derived = Buffer.alloc(0);
+  let block = Buffer.alloc(0);
+  while (derived.length < keyLength + ivLength) {
+    block = crypto.createHash("md5").update(Buffer.concat([block, passBuffer, saltBuffer])).digest();
+    derived = Buffer.concat([derived, block]);
+  }
+  return {
+    key: derived.subarray(0, keyLength),
+    iv: derived.subarray(keyLength, keyLength + ivLength),
+  };
+}
+
+function decryptFragranticaPayload(payload, host = "www.fragrantica.com") {
+  if (!payload || !payload.ct || !payload.iv || !payload.s) {
+    return null;
+  }
+  const passphrase = deriveFragranticaPassphrase(host);
+  const salt = Buffer.from(String(payload.s), "hex");
+  const { key } = evpBytesToKey(passphrase, salt, 32, 16);
+  const decipher = crypto.createDecipheriv("aes-256-cbc", key, Buffer.from(String(payload.iv), "hex"));
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(String(payload.ct), "base64")),
+    decipher.final(),
+  ]).toString("utf8");
+  return JSON.parse(decrypted);
+}
+
+function normalizeSimilarPerfumes(data) {
+  const items = Array.isArray(data?.similar_perfumes) ? data.similar_perfumes : [];
+  return items.map((item) => ({
+    similar_id: item.similar_id || item.parfem_id2 || "",
+    votes: item.votes || 0,
+    vote_yes: item.vote_yes || 0,
+    vote_no: item.vote_no || 0,
+    perfume: item.perfume
+      ? {
+          id: item.perfume.id || "",
+          name: item.perfume.naslov || item.perfume.name || "",
+          designer: item.perfume.dizajner || item.perfume.designer || "",
+          slug: item.perfume.slug || "",
+          sex: item.perfume.spol || item.perfume.sex || "",
+          perfume_url: item.perfume.perfume_url || item.perfume.url || "",
+          thumbnail: item.perfume.thumbnail || "",
+        }
+      : null,
+  }));
+}
+
+function extractSimilarPerfumes(html, url = "") {
+  const match = html.match(/let\s+similar_perfumes\s*=\s*(\{[\s\S]*?\})\s*;/);
+  if (!match) {
+    return { similar_perfumes: [], similar_perfumes_user_votes: [] };
+  }
+
+  try {
+    const payload = JSON.parse(match[1]);
+    const data = decryptFragranticaPayload(payload, new URL(url || "https://www.fragrantica.com").host);
+    if (!data) {
+      return { similar_perfumes: [], similar_perfumes_user_votes: [] };
+    }
+    return {
+      similar_perfumes: normalizeSimilarPerfumes(data),
+      similar_perfumes_user_votes: Array.isArray(data.user_votes) ? data.user_votes : [],
+    };
+  } catch (error) {
+    return { similar_perfumes: [], similar_perfumes_user_votes: [] };
+  }
+}
+
+function normalizeStatusSummary(summary) {
+  const source = summary && typeof summary === "object" ? summary : {};
+  const pickBreakdown = (value) => {
+    const result = {};
+    if (!value || typeof value !== "object") return result;
+    for (const [key, entry] of Object.entries(value)) {
+      if (
+        /^\d+$/.test(key) ||
+        ["female", "female_unisex", "unisex", "male_unisex", "male", "have", "had", "want"].includes(key)
+      ) {
+        result[key] = entry;
+      }
+    }
+    return result;
+  };
+
+  return {
+    longevity: {
+      average: source.longevity_average ?? "",
+      sum: source.longevity_sum ?? "",
+      max: source.longevity_max ?? "",
+      breakdown: pickBreakdown(source.longevity),
+    },
+    sillage: {
+      average: source.sillage_average ?? "",
+      sum: source.sillage_sum ?? "",
+      max: source.sillage_max ?? "",
+      breakdown: pickBreakdown(source.sillage),
+    },
+    price_value: {
+      average: source.price_value_average ?? "",
+      sum: source.price_value_sum ?? "",
+      max: source.price_value_max ?? "",
+      breakdown: pickBreakdown(source.price_value),
+    },
+    rating: {
+      average: source.rating_average ?? "",
+      sum: source.rating_sum ?? "",
+      max: source.rating_max ?? "",
+      breakdown: pickBreakdown(source.rating),
+    },
+    gender: {
+      sum: source.gender_sum ?? "",
+      max: source.gender_max ?? "",
+      breakdown: pickBreakdown(source.gender),
+    },
+    relation: {
+      sum: source.relation_sum ?? "",
+      max: source.relation_max ?? "",
+      breakdown: pickBreakdown(source.relation),
+    },
+    season_scores: [
+      { label: "winter", value: source.winter ?? "" },
+      { label: "spring", value: source.spring ?? "" },
+      { label: "summer", value: source.summer ?? "" },
+      { label: "autumn", value: source.autumn ?? "" },
+      { label: "day", value: source.day ?? "" },
+      { label: "night", value: source.night ?? "" },
+    ].filter((item) => item.value !== "" && item.value !== null && item.value !== undefined),
+    perfume_id: source.perfume_id ?? "",
+    people: source.people ?? "",
+  };
+}
+
+function extractFragranticaStatus(html, url = "") {
+  const match = html.match(/let\s+status\s*=\s*(\{[\s\S]*?\})\s*;/);
+  if (!match) {
+    return { status_summary: {}, user_status: {} };
+  }
+
+  try {
+    const payload = JSON.parse(match[1]);
+    const data = decryptFragranticaPayload(payload, new URL(url || "https://www.fragrantica.com").host);
+    if (!data || typeof data !== "object") {
+      return { status_summary: {}, user_status: {} };
+    }
+    return {
+      status_summary: normalizeStatusSummary(data.status || {}),
+      user_status: data.user_status || {},
+    };
+  } catch (error) {
+    return { status_summary: {}, user_status: {} };
+  }
+}
+
+function extractFragranticaMeta(html) {
+  const metaDescription = extractMetaContent(html, "description") || extractMetaContent(html, "og:description");
+  const descriptionMatch = metaDescription.match(
+    /^(.+?) by (.+?) is a (.+?) fragrance for (.+?)\.\s*(.+?) was launched in (\d{4})\.\s*The nose behind this fragrance is (.+?)(?:\.\s*$|\.{3}$|$)/i,
+  );
+  return {
+    meta_description: metaDescription || "",
+    notes_family: descriptionMatch ? descriptionMatch[3].trim() : "",
+    notes_gender: descriptionMatch ? descriptionMatch[4].trim() : "",
+    notes_launch_year: descriptionMatch ? descriptionMatch[6].trim() : "",
+    notes_nose: descriptionMatch ? descriptionMatch[7].trim() : "",
+  };
+}
+
+function extractFragrantica(html, url = "") {
   const topMatch = html.match(
     /Top notes? are\s+(.+?);\s*middle notes? are\s+(.+?);\s*base notes? are\s+(.+?)(?:<\/p>|[.]\s*<\/p>)/i,
   );
@@ -88,6 +290,23 @@ function extractFragrantica(html) {
     /itemprop="ratingValue"[^>]*class="font-semibold[^"]*">([\d.]+)<\/span>/i,
   );
   const rating_count = extractFirstMatch(html, /itemprop="ratingCount"\s+content="(\d+)"/i);
+  const reviews_count = extractFirstMatch(html, /Reviews\s*\(\s*<span[^>]*>\s*([\d,]+)\s*<\/span>\s*\)/i);
+  const metaFields = extractFragranticaMeta(html);
+
+  const whenToWearStart = html.indexOf('tw-rating-card-label">When To Wear</span>');
+  const perfRatingStart = whenToWearStart >= 0 ? html.indexOf("Perfume rating", whenToWearStart) : -1;
+  const whenToWearSlice =
+    whenToWearStart >= 0 && perfRatingStart > whenToWearStart
+      ? html.slice(whenToWearStart, perfRatingStart)
+      : "";
+  const seasonScores = whenToWearSlice
+    ? [...whenToWearSlice.matchAll(/<span[^>]*>\s*(winter|spring|summer|fall|day|night)\s*<\/span>[\s\S]*?<span[^>]*>([\d,]+)<\/span>/gi)]
+        .map((match) => ({
+          label: match[1].trim().toLowerCase(),
+          value: match[2].replace(/,/g, ""),
+        }))
+        .filter((item) => item.label && item.value)
+    : [];
 
   const longevitySliceStart = html.indexOf('data-type="durability"');
   const sillageSliceStart = html.indexOf('data-type="sillage"');
@@ -117,16 +336,23 @@ function extractFragrantica(html) {
     sillageSlice,
     /class="lightgrey text-2xs upper">([\d,]+)\s+Ratings<\/span>/i,
   );
+  const similarPerfumes = extractSimilarPerfumes(html, url);
+  const statusFields = extractFragranticaStatus(html, url);
 
   return {
     ...notes,
     accords,
     rating_value,
     rating_count,
+    reviews_count,
+    ...metaFields,
+    season_scores: seasonScores,
     longevity_value,
     longevity_votes,
     sillage_value,
     sillage_votes,
+    ...statusFields,
+    ...similarPerfumes,
   };
 }
 
@@ -204,6 +430,7 @@ function extractParfumo(html) {
     accords,
     rating_value: scentValue,
     rating_count: scentVotes,
+    season_scores: [],
     longevity_value: longevityValue,
     longevity_votes: longevityVotes,
     sillage_value: sillageValue,
@@ -213,7 +440,7 @@ function extractParfumo(html) {
 
 function extractPageData(url, html) {
   if (/fragrantica\.com/i.test(url)) {
-    return extractFragrantica(html);
+    return extractFragrantica(html, url);
   }
   if (/parfumo\.com/i.test(url)) {
     return extractParfumo(html);
@@ -225,10 +452,21 @@ function extractPageData(url, html) {
     accords: [],
     rating_value: "",
     rating_count: "",
+    reviews_count: "",
+    meta_description: "",
+    notes_family: "",
+    notes_gender: "",
+    notes_launch_year: "",
+    notes_nose: "",
+    season_scores: [],
     longevity_value: "",
     longevity_votes: "",
     sillage_value: "",
     sillage_votes: "",
+    status_summary: {},
+    user_status: {},
+    similar_perfumes: [],
+    similar_perfumes_user_votes: [],
   };
 }
 
@@ -361,10 +599,21 @@ async function scrapeUrl(browser, url, query = "") {
     accords: [],
     rating_value: "",
     rating_count: "",
+    reviews_count: "",
+    meta_description: "",
+    notes_family: "",
+    notes_gender: "",
+    notes_launch_year: "",
+    notes_nose: "",
+    season_scores: [],
     longevity_value: "",
     longevity_votes: "",
     sillage_value: "",
     sillage_votes: "",
+    status_summary: {},
+    user_status: {},
+    similar_perfumes: [],
+    similar_perfumes_user_votes: [],
     raw_path: "",
     blocked: false,
     error: "",
@@ -401,10 +650,21 @@ async function scrapeUrl(browser, url, query = "") {
     result.accords = parsed.accords || [];
     result.rating_value = parsed.rating_value || "";
     result.rating_count = parsed.rating_count || "";
+    result.reviews_count = parsed.reviews_count || "";
+    result.meta_description = parsed.meta_description || "";
+    result.notes_family = parsed.notes_family || "";
+    result.notes_gender = parsed.notes_gender || "";
+    result.notes_launch_year = parsed.notes_launch_year || "";
+    result.notes_nose = parsed.notes_nose || "";
+    result.season_scores = parsed.season_scores || [];
     result.longevity_value = parsed.longevity_value || "";
     result.longevity_votes = parsed.longevity_votes || "";
     result.sillage_value = parsed.sillage_value || "";
     result.sillage_votes = parsed.sillage_votes || "";
+    result.status_summary = parsed.status_summary || {};
+    result.user_status = parsed.user_status || {};
+    result.similar_perfumes = parsed.similar_perfumes || [];
+    result.similar_perfumes_user_votes = parsed.similar_perfumes_user_votes || [];
     return result;
   } catch (error) {
     result.error = String(error && error.message ? error.message : error);
@@ -451,10 +711,21 @@ async function main() {
         accords: [],
         rating_value: "",
         rating_count: "",
+        reviews_count: "",
+        meta_description: "",
+        notes_family: "",
+        notes_gender: "",
+        notes_launch_year: "",
+        notes_nose: "",
+        season_scores: [],
         longevity_value: "",
         longevity_votes: "",
         sillage_value: "",
         sillage_votes: "",
+        status_summary: {},
+        user_status: {},
+        similar_perfumes: [],
+        similar_perfumes_user_votes: [],
         raw_path: "",
         blocked: false,
         error: "no result",
