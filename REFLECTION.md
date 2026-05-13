@@ -43,4 +43,6 @@ After calibrating the eval set, I upgraded the retriever itself: it now combines
 
 What I learned is that the benchmark has to come first if the RAG is meant to be useful. Once the eval started resolving to real corpus URLs and using graded judgments, it became obvious which query types were strong and which ones still needed work. That made the retrieval tuning meaningful instead of subjective.
 
-The next useful move is to keep improving the answer quality and ranking on vibe, similarity, and comparison queries while preserving exact lookup reliability.
+I also added a Fragrantica fallback path for the `/rag` page. The search step now resolves canonical Fragrantica perfume URLs through Bing when the merged corpus misses a query, but Fragrantica itself blocks automated page scraping in this environment, so the pipeline now fails honestly with a blocked error instead of pretending that a scrape succeeded. That was still useful because it proved the orchestration, made the failure mode visible, and kept the user-facing fallback from collapsing into a generic “search failed.”
+
+The next useful move is to keep improving the answer quality and ranking on vibe, similarity, and comparison queries while preserving exact lookup reliability, and to decide on a source that can actually be scraped into the corpus when Fragrantica blocks the page load.

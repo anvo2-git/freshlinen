@@ -67,12 +67,16 @@ python3 scripts/query-rag.py "woody winter vanilla" --limit 5
 ```
 
 The in-app retrieval UI is available at `/rag`, and the JSON endpoint is `GET /api/rag/query?q=...&limit=...`.
+When the corpus misses a perfume, the `/rag` page can search Fragrantica URLs through a Bing-backed fallback.
+The search step now returns canonical Fragrantica perfume pages, but the live Fragrantica scrape step is still blocked by Cloudflare in this environment, so `Scrape & cache` will surface an explicit blocked error instead of pretending the scrape succeeded.
 Run `npm run rag-eval` after starting the app to score the fixed RAG query set against the live endpoint.
 The machine-readable benchmark cases live at `data/rag/eval-manifest.json`.
 The exported qrels/topics files live at `data/rag/eval.qrels` and `data/rag/eval-topics.tsv`.
 The qrels use canonical corpus URLs as docno identifiers, so the benchmark stays
 anchored to real corpus rows instead of fuzzy name matches.
 The latest saved run for the dashboard lives at `data/rag/eval-latest.json`.
+Historical runs append to `data/rag/eval-history.json` when you run the eval with
+`--output`.
 The current write-up lives in `REFLECTION.md`, and the RAG backlog is tracked in
 `docs/rag-todo.md`.
 

@@ -2,6 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { BEGINNER_PROMPTS } from "@/lib/rag-semantic.mjs";
+import {
+  scrapeFragranticaCandidate,
+  searchFragranticaCandidates,
+  type FragranticaCandidate,
+} from "@/lib/rag-fallback";
+import type { RagSuggestedPrompt } from "@/lib/rag";
 
 type RagResult = {
   doc_id: string;
@@ -21,6 +28,7 @@ type RagResult = {
   quality_score: number;
   rationale: string;
   comparison_part_hits?: number[];
+  semantic_matches?: string[];
 };
 
 type RagResponse = {
@@ -30,6 +38,9 @@ type RagResponse = {
   indexed_size: number;
   intent: string;
   answer: string;
+  beginner_hint: string;
+  matched_concepts: string[];
+  suggested_prompts: RagSuggestedPrompt[];
   results: RagResult[];
   error?: string;
 };
@@ -47,8 +58,49 @@ export default function RagPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RagResponse | null>(null);
   const [error, setError] = useState("");
+  const [fragranticaResults, setFragranticaResults] = useState<FragranticaCandidate[]>([]);
+  const [searchingFragrantica, setSearchingFragrantica] = useState(false);
+  const [fragranticaError, setFragranticaError] = useState("");
+  const [scrapingUrl, setScrapingUrl] = useState("");
+  const [scrapeNotice, setScrapeNotice] = useState("");
 
   const canSearch = useMemo(() => query.trim().length >= 2, [query]);
+
+  async function searchFragrantica(nextQuery = query) {
+    const trimmed = nextQuery.trim();
+    if (trimmed.length < 2) return;
+
+    setSearchingFragrantica(true);
+    setFragranticaError("");
+    try {
+      const results = await searchFragranticaCandidates(trimmed);
+      setFragranticaResults(results);
+      if (results.length === 0) {
+        setFragranticaError("No Fragrantica candidates found for that query.");
+      }
+    } catch (error) {
+      setFragranticaResults([]);
+      setFragranticaError(error instanceof Error ? error.message : "Fragrantica search failed.");
+    } finally {
+      setSearchingFragrantica(false);
+    }
+  }
+
+  async function scrapeFragrantica(candidate: FragranticaCandidate) {
+    setScrapingUrl(candidate.url);
+    setFragranticaError("");
+    setScrapeNotice("");
+    try {
+      const data = await scrapeFragranticaCandidate(candidate.url);
+      setScrapeNotice(
+        `Cached ${data.brand ?? candidate.brand} ${data.name ?? candidate.name} in Supabase. Rebuild the corpus to fold it into RAG.`
+      );
+    } catch (error) {
+      setFragranticaError(error instanceof Error ? error.message : "Scraping failed.");
+    } finally {
+      setScrapingUrl("");
+    }
+  }
 
   async function runSearch(nextQuery = query) {
     const trimmed = nextQuery.trim();
@@ -56,6 +108,9 @@ export default function RagPage() {
 
     setLoading(true);
     setError("");
+    setFragranticaResults([]);
+    setFragranticaError("");
+    setScrapeNotice("");
     try {
       const res = await fetch(`/api/rag/query?q=${encodeURIComponent(trimmed)}&limit=${limit}`);
       const data = (await res.json()) as RagResponse;
@@ -65,6 +120,9 @@ export default function RagPage() {
         return;
       }
       setResult(data);
+      if ((data.results?.length ?? 0) === 0) {
+        void searchFragrantica(trimmed);
+      }
     } catch {
       setResult(null);
       setError("Network error.");
@@ -113,6 +171,33 @@ export default function RagPage() {
           </button>
         </div>
 
+        <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-violet-400">Need a starting point?</p>
+              <p className="mt-1 text-sm text-violet-700">
+                If you do not know the note vocabulary, start from the feeling you want. The chips
+                below are the easiest perfume directions to explain.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {BEGINNER_PROMPTS.map((prompt) => (
+              <button
+                key={prompt.label}
+                type="button"
+                onClick={() => {
+                  setQuery(prompt.query);
+                  runSearch(prompt.query);
+                }}
+                className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-sm text-violet-700 hover:bg-violet-100"
+              >
+                {prompt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
           {SAMPLE_QUERIES.map((sample) => (
             <button
@@ -147,12 +232,53 @@ export default function RagPage() {
                 <div className="text-xs uppercase tracking-[0.2em] text-violet-400">Answer brief</div>
                 <p className="mt-3 text-sm leading-relaxed text-violet-800">{result.answer}</p>
               </div>
+              {result.beginner_hint ? (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+                  <div className="text-xs uppercase tracking-[0.2em] text-violet-400">Beginner hint</div>
+                  <p className="mt-3 text-sm leading-relaxed text-violet-700">{result.beginner_hint}</p>
+                  {result.matched_concepts.length > 0 ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {result.matched_concepts.map((concept) => (
+                        <span key={concept} className="rounded-full bg-white px-3 py-1 text-xs text-violet-700 border border-violet-200">
+                          {concept}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {result.suggested_prompts.length > 0 ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {result.suggested_prompts.slice(0, 5).map((prompt) => (
+                        <button
+                          key={prompt.label}
+                          type="button"
+                          onClick={() => {
+                            setQuery(prompt.query);
+                            runSearch(prompt.query);
+                          }}
+                          className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs text-violet-700 hover:bg-violet-100"
+                          title={prompt.description}
+                        >
+                          {prompt.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           )}
 
           {!loading && result?.results?.length === 0 && !error && (
             <div className="rounded-2xl border border-dashed border-violet-200 bg-white p-8 text-violet-500">
-              No matches yet. Try a perfume name, note combo, or vibe query.
+              <p>No corpus match yet. Try a perfume name, note combo, or vibe query.</p>
+              <button
+                type="button"
+                onClick={() => searchFragrantica()}
+                disabled={searchingFragrantica}
+                className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {searchingFragrantica ? "Searching Fragrantica..." : "Search Fragrantica instead"}
+              </button>
             </div>
           )}
 
@@ -194,6 +320,11 @@ export default function RagPage() {
                     {note}
                   </span>
                 ))}
+                {item.semantic_matches?.slice(0, 5).map((concept) => (
+                  <span key={concept} className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                    {concept}
+                  </span>
+                ))}
               </div>
 
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-violet-500">
@@ -209,11 +340,59 @@ export default function RagPage() {
         <aside className="space-y-4">
           <div className="rounded-2xl border border-violet-200 bg-white p-5">
             <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">
+              Fragrantica fallback
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-violet-700">
+              If the merged corpus misses a perfume, search Fragrantica and scrape a result into
+              the shared Supabase cache.
+            </p>
+            <button
+              type="button"
+              onClick={() => searchFragrantica()}
+              disabled={!canSearch || searchingFragrantica}
+              className="mt-4 inline-flex rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {searchingFragrantica ? "Searching..." : "Search Fragrantica"}
+            </button>
+            {scrapeNotice ? <p className="mt-3 text-sm text-emerald-700">{scrapeNotice}</p> : null}
+            {fragranticaError ? <p className="mt-3 text-sm text-rose-700">{fragranticaError}</p> : null}
+            {fragranticaResults.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {fragranticaResults.map((item) => (
+                  <div key={item.url} className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-sm font-medium text-violet-950 hover:text-violet-700"
+                    >
+                      {item.brand ? `${item.brand} / ` : ""}
+                      {item.name}
+                    </a>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => scrapeFragrantica(item)}
+                        disabled={scrapingUrl === item.url}
+                        className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {scrapingUrl === item.url ? "Scraping..." : "Scrape & cache"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-2xl border border-violet-200 bg-white p-5">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">
               What this does
             </h3>
             <ul className="mt-4 space-y-3 text-sm leading-relaxed text-violet-700">
               <li>Searches the merged perfume corpus with natural language.</li>
               <li>Ranks exact name, brand, note, and accord overlaps higher.</li>
+              <li>Expands beginner scent language like fresh, sweet, smoky, woody, and floral.</li>
               <li>Prefers richer records when the query is ambiguous.</li>
               <li>Returns snippets you can inspect before using the result.</li>
             </ul>
