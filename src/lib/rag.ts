@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+const GENDER_SUFFIXES = ["for women and men", "for women", "for men"];
+
 export interface RagDocument {
   doc_id: string;
   source_type: string;
@@ -46,8 +48,14 @@ export interface RagQueryResponse {
 interface IndexedDocument {
   doc: RagDocument;
   searchText: string;
+  searchTokens: string[];
   titleText: string;
+  titleTokens: string[];
   noteText: string;
+  noteTokens: string[];
+  brandTokens: string[];
+  canonicalNameText: string;
+  canonicalNameTokens: string[];
   qualityScore: number;
 }
 
@@ -113,6 +121,61 @@ function tokenize(value: string): string[] {
     .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
 }
 
+function canonicalizeBrand(value: string): string {
+  return normalize(value);
+}
+
+function canonicalizeName(name: string, brand = ""): string {
+  let value = normalize(name);
+  for (const suffix of GENDER_SUFFIXES) {
+    if (value.endsWith(suffix)) {
+      value = value.slice(0, -suffix.length).trim();
+    }
+  }
+
+  const normalizedBrand = canonicalizeBrand(brand);
+  if (normalizedBrand) {
+    if (value.endsWith(normalizedBrand)) {
+      value = value.slice(0, -normalizedBrand.length).trim();
+    }
+    if (value.startsWith(`${normalizedBrand} `)) {
+      value = value.slice(normalizedBrand.length).trim();
+    }
+  }
+
+  return value.trim();
+}
+
+function tokenContains(tokens: string[], term: string): boolean {
+  return tokens.includes(term);
+}
+
+function tokenSuffixMatch(tokens: string[], suffixTokens: string[]): boolean {
+  if (suffixTokens.length === 0 || suffixTokens.length > tokens.length) return false;
+  const offset = tokens.length - suffixTokens.length;
+  for (let i = 0; i < suffixTokens.length; i += 1) {
+    if (tokens[offset + i] !== suffixTokens[i]) return false;
+  }
+  return true;
+}
+
+function canonicalOverlapScore(sourceTokens: string[], queryTokens: string[]): { score: number; overlap: number } {
+  const overlap = queryTokens.reduce((count, token) => count + (tokenContains(sourceTokens, token) ? 1 : 0), 0);
+  let score = overlap * 18;
+  if (overlap > 0) {
+    if (overlap === queryTokens.length) {
+      score += 28;
+    }
+    if (queryTokens.length <= sourceTokens.length && tokenSuffixMatch(sourceTokens, queryTokens)) {
+      score += 24;
+    }
+    if (queryTokens.length < sourceTokens.length && overlap === queryTokens.length) {
+      score -= 8;
+    }
+  }
+  return { score, overlap };
+}
+
 function uniq(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -138,6 +201,9 @@ function qualityScore(doc: RagDocument): number {
 function buildIndexedDocument(doc: RagDocument): IndexedDocument {
   const accords = parseList(doc.accords);
   const notes = parseList(doc.notes);
+  const canonicalNameText = canonicalizeName(doc.name, doc.brand);
+  const brandTokens = tokenize(doc.brand);
+  const canonicalNameTokens = tokenize(canonicalNameText);
   const searchText = normalize(
     [
       doc.brand,
@@ -152,13 +218,22 @@ function buildIndexedDocument(doc: RagDocument): IndexedDocument {
       doc.text,
     ].join(" ")
   );
-  const titleText = normalize([doc.brand, doc.name].join(" "));
+  const searchTokens = tokenize(searchText);
+  const titleText = normalize([doc.brand, canonicalNameText].join(" "));
+  const titleTokens = tokenize(titleText);
   const noteText = normalize([...accords, ...notes].join(" "));
+  const noteTokens = tokenize(noteText);
   return {
     doc,
     searchText,
+    searchTokens,
     titleText,
+    titleTokens,
     noteText,
+    noteTokens,
+    brandTokens,
+    canonicalNameText,
+    canonicalNameTokens,
     qualityScore: qualityScore(doc),
   };
 }
@@ -271,6 +346,7 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
   const normalizedQuery = normalize(query);
   const terms = uniq(tokenize(query));
   const intent = parseQueryIntent(query);
+  const queryTokens = tokenize(query);
   const maxResults = Math.max(1, Math.min(limit, 20));
 
   if (!normalizedQuery || terms.length === 0) {
@@ -292,27 +368,27 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
       for (const term of terms) {
         let hit = false;
 
-        if (entry.titleText.includes(term)) {
+        if (tokenContains(entry.titleTokens, term) || tokenContains(entry.canonicalNameTokens, term)) {
           score += 12;
           hit = true;
         }
-        if ((entry.doc.brand || "").toLowerCase().includes(term)) {
+        if (tokenContains(entry.brandTokens, term)) {
           score += 8;
           hit = true;
         }
-        if ((entry.doc.name || "").toLowerCase().includes(term)) {
+        if (tokenContains(entry.canonicalNameTokens, term) || tokenContains(entry.searchTokens, term)) {
           score += 12;
           hit = true;
         }
-        if (entry.noteText.includes(term)) {
+        if (tokenContains(entry.noteTokens, term)) {
           score += 6;
           hit = true;
         }
-        if (entry.searchText.includes(term)) {
+        if (tokenContains(entry.searchTokens, term)) {
           score += 3;
           hit = true;
         }
-        if ((entry.doc.release_signal || "").toLowerCase().includes(term)) {
+        if (tokenize(entry.doc.release_signal || "").includes(term)) {
           score += 1;
           hit = true;
         }
@@ -320,39 +396,59 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
         if (hit) matchedTerms.push(term);
       }
 
-      if (entry.titleText.includes(normalizedQuery)) {
+      if (queryTokens.length > 0 && tokenSuffixMatch(queryTokens, entry.canonicalNameTokens)) {
+        score += queryTokens.length === entry.canonicalNameTokens.length ? 120 : 90;
+      } else if (queryTokens.length > 0 && tokenSuffixMatch(queryTokens, entry.titleTokens)) {
+        score += 60;
+      }
+
+      if (intent.isExactLookup && tokenSuffixMatch(queryTokens, entry.canonicalNameTokens)) {
+        score += 80;
+      }
+      if (intent.isExactLookup && queryTokens.length < entry.canonicalNameTokens.length) {
+        score -= 12;
+      }
+
+      if (normalizedQuery && entry.titleText === normalizedQuery) {
         score += 20;
       }
-      if (entry.searchText.includes(normalizedQuery)) {
+      if (normalizedQuery && entry.searchText.includes(normalizedQuery)) {
         score += 10;
+      }
+
+      if (intent.isExactLookup) {
+        const exactScore = canonicalOverlapScore(entry.canonicalNameTokens, queryTokens);
+        if (exactScore.overlap === 0) {
+          score -= 30;
+        } else {
+          score += exactScore.score + exactScore.overlap * 10;
+          if (exactScore.overlap === queryTokens.length && queryTokens.length <= 3) {
+            score += 20;
+          }
+        }
       }
 
       if (intent.isComparison) {
         const queryParts = splitQueryParts(query);
         queryParts.forEach((part, partIndex) => {
           const partTerms = uniq(tokenize(part));
-          if (part && entry.searchText.includes(part)) {
-            score += 28;
-            comparisonPartHits.push(partIndex);
+          if (partTerms.length > 0) {
+            const partScore = canonicalOverlapScore(entry.canonicalNameTokens, partTerms);
+            if (partScore.overlap > 0) {
+              score += partScore.score;
+            }
+            if (partScore.overlap === partTerms.length) {
+              comparisonPartHits.push(partIndex);
+              matchedTerms.push(...partTerms);
+            }
           }
-          if (partTerms.every((term) => entry.searchText.includes(term))) {
-            score += 10;
-            matchedTerms.push(...partTerms);
-            comparisonPartHits.push(partIndex);
-          }
-          if (normalize(entry.titleText).includes(part)) {
-            score += 18;
-            comparisonPartHits.push(partIndex);
-          }
-          if (partTerms.some((term) => entry.titleText.includes(term))) {
+          if (partTerms.some((term) => tokenContains(entry.titleTokens, term))) {
             score += 6;
           }
         });
 
-        const lowerName = entry.titleText;
         const strongBrandNameHit =
-          queryParts.some((part) => lowerName.includes(normalize(part))) ||
-          queryParts.some((part) => entry.searchText.includes(normalize(part)));
+          queryParts.some((part) => canonicalOverlapScore(entry.canonicalNameTokens, uniq(tokenize(part))).overlap > 0);
         if (strongBrandNameHit) {
           score += 12;
         }

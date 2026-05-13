@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import fs from "fs";
 import {
   canonicalDocKey,
   loadCorpus,
@@ -59,6 +60,16 @@ function resultSearchText(result) {
   }`;
 }
 
+function tokenize(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/['’`-]/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1);
+}
+
 function matchesJudgment(result, judgment) {
   const acceptedDocnos = Array.isArray(judgment.resolved_docnos) ? judgment.resolved_docnos : [];
   const resultDocnos = [result.url, result.official_url].filter(Boolean);
@@ -66,8 +77,8 @@ function matchesJudgment(result, judgment) {
 }
 
 function matchesTerms(result, terms) {
-  const text = resultSearchText(result);
-  return terms.every((term) => text.includes(term.toLowerCase()));
+  const tokens = tokenize(resultSearchText(result));
+  return terms.every((term) => tokens.includes(term.toLowerCase()));
 }
 
 function scoreCase(results, testCase, defaults) {
