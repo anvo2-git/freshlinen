@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 type RagResult = {
   doc_id: string;
@@ -214,6 +215,12 @@ export default function RagPage() {
             <p className="mt-3 leading-relaxed">
               This is the first pass: lexical retrieval over the current corpus, not embeddings or answer generation yet.
             </p>
+            <Link
+              href="/rag/eval"
+              className="mt-4 inline-flex rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-medium text-violet-700 hover:bg-violet-100"
+            >
+              Open eval dashboard
+            </Link>
           </div>
         </aside>
       </div>

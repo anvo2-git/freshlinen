@@ -12,6 +12,7 @@ function parseArgs(argv) {
     baseUrl: process.env.RAG_BASE_URL || DEFAULT_BASE_URL,
     failUnder: DEFAULT_FAIL_UNDER,
     json: false,
+    output: "",
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -25,6 +26,9 @@ function parseArgs(argv) {
       i += 1;
     } else if (token === "--json") {
       args.json = true;
+    } else if (token === "--output") {
+      args.output = argv[i + 1] || "";
+      i += 1;
     } else if (token === "--help" || token === "-h") {
       printHelpAndExit();
     }
@@ -164,7 +168,7 @@ function formatResult(result) {
 }
 
 async function main() {
-  const { baseUrl, failUnder, json } = parseArgs(process.argv);
+  const { baseUrl, failUnder, json, output } = parseArgs(process.argv);
   const manifest = loadManifest();
   const cases = Array.isArray(manifest.cases) ? manifest.cases : [];
   const defaults = manifest.defaults || {};
@@ -250,6 +254,10 @@ async function main() {
         console.log("  note: manual review only");
       }
     }
+  }
+
+  if (output) {
+    fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   }
 
   if (overall < failUnder) {

@@ -1,0 +1,340 @@
+{
+  "baseUrl": "http://127.0.0.1:3000",
+  "total": 32,
+  "passed": 30,
+  "exactPassed": 20,
+  "vibePassed": 6,
+  "comparisonPassed": 4,
+  "manualReviewCases": 2,
+  "score": 0.976,
+  "failUnder": 0.7,
+  "intentCounts": {
+    "exact_lookup": 20,
+    "vibe_search": 5,
+    "filter_search": 1,
+    "comparison": 4,
+    "negative_abstain": 2
+  },
+  "results": [
+    {
+      "id": "layton",
+      "intent": "exact_lookup",
+      "query": "Layton",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Parfums de Marly | LAYTON [85.75]",
+      "match": "Parfums de Marly | LAYTON [85.75]",
+      "manualReview": false
+    },
+    {
+      "id": "naxos",
+      "intent": "exact_lookup",
+      "query": "Xerjoff Naxos",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Xerjoff | XJ 1861 Naxos Xerjofffor women and men [89.25]",
+      "match": "Xerjoff | XJ 1861 Naxos Xerjofffor women and men [89.25]",
+      "manualReview": false
+    },
+    {
+      "id": "sauvage",
+      "intent": "exact_lookup",
+      "query": "Dior Sauvage",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Dior | Sauvage Diorfor men [119.25]",
+      "match": "Dior | Sauvage Diorfor men [119.25]",
+      "manualReview": false
+    },
+    {
+      "id": "black-orchid",
+      "intent": "exact_lookup",
+      "query": "Tom Ford Black Orchid",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Tom Ford | Black Orchid Tom Fordfor women [191.25]",
+      "match": "Tom Ford | Black Orchid Tom Fordfor women [191.25]",
+      "manualReview": false
+    },
+    {
+      "id": "smoky-vanilla",
+      "intent": "vibe_search",
+      "query": "smoky vanilla winter",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Coty | Vanilla Fields Winter Cotyfor women [78.33]",
+      "match": "Coty | Vanilla Fields Winter Cotyfor women [78.33]",
+      "manualReview": false
+    },
+    {
+      "id": "rose-oud-incense",
+      "intent": "vibe_search",
+      "query": "rose oud incense",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "By Kilian | Incense Oud By Kilianfor women and men [102.25]",
+      "match": "By Kilian | Incense Oud By Kilianfor women and men [102.25]",
+      "manualReview": false
+    },
+    {
+      "id": "fresh-woody",
+      "intent": "vibe_search",
+      "query": "fresh woody summer",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "To Summer guan xia | Cedarwood To Summer | 观夏for women and men [78.75]",
+      "match": "To Summer guan xia | Cedarwood To Summer | 观夏for women and men [78.75]",
+      "manualReview": false
+    },
+    {
+      "id": "citrus-musk",
+      "intent": "vibe_search",
+      "query": "citrus musk cedar",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Bath Body Works | Citrus & Cedar Cologne Mist Bath & Body Worksfor women and men [79.08]",
+      "match": "Bath Body Works | Citrus & Cedar Cologne Mist Bath & Body Worksfor women and men [79.08]",
+      "manualReview": false
+    },
+    {
+      "id": "powdery-iris",
+      "intent": "vibe_search",
+      "query": "powdery iris",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Zara | Romance d'Iris Zarafor women [80.00]",
+      "match": "Zara | Romance d'Iris Zarafor women [80.00]",
+      "manualReview": false
+    },
+    {
+      "id": "new-amber",
+      "intent": "filter_search",
+      "query": "new fragrance amber",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Bahfamsn Fragrance | Amber Ora Bahfamsn Fragrancefor women and men [105.50]",
+      "match": "Bahfamsn Fragrance | Amber Ora Bahfamsn Fragrancefor women and men [105.50]",
+      "manualReview": false
+    },
+    {
+      "id": "baccarat-rouge-540",
+      "intent": "exact_lookup",
+      "query": "Baccarat Rouge 540",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Maison Francis Kurkdjian | Baccarat Rouge 540 Extrait Limited Edition Maison Francis Kurkdjianfor women and men [139.00]",
+      "match": "Maison Francis Kurkdjian | Baccarat Rouge 540 Extrait Limited Edition Maison Francis Kurkdjianfor women and men [139.00]",
+      "manualReview": false
+    },
+    {
+      "id": "baccarat-rouge-540-extrait",
+      "intent": "exact_lookup",
+      "query": "Baccarat Rouge 540 Extrait de Parfum",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Maison Francis Kurkdjian | Baccarat Rouge 540 Extrait de Parfum Maison Francis Kurkdjianfor women and men [217.25]",
+      "match": "Maison Francis Kurkdjian | Baccarat Rouge 540 Extrait de Parfum Maison Francis Kurkdjianfor women and men [217.25]",
+      "manualReview": false
+    },
+    {
+      "id": "reflection-man",
+      "intent": "exact_lookup",
+      "query": "Amouage Reflection Man",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Amouage | Reflection Man Amouagefor men [146.25]",
+      "match": "Amouage | Reflection Man Amouagefor men [146.25]",
+      "manualReview": false
+    },
+    {
+      "id": "aventus",
+      "intent": "exact_lookup",
+      "query": "Creed Aventus",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Creed | Aventus Creedfor men [119.25]",
+      "match": "Creed | Aventus Creedfor men [119.25]",
+      "manualReview": false
+    },
+    {
+      "id": "oud-satin-mood",
+      "intent": "exact_lookup",
+      "query": "Maison Francis Kurkdjian Oud Satin Mood",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Maison Francis Kurkdjian | Oud Satin Mood Maison Francis Kurkdjianfor women and men [245.00]",
+      "match": "Maison Francis Kurkdjian | Oud Satin Mood Maison Francis Kurkdjianfor women and men [245.00]",
+      "manualReview": false
+    },
+    {
+      "id": "side-effect",
+      "intent": "exact_lookup",
+      "query": "Initio Side Effect",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Initio Parfums Prives | Side Effect Initio Parfums Privesfor women and men [114.00]",
+      "match": "Initio Parfums Prives | Side Effect Initio Parfums Privesfor women and men [114.00]",
+      "manualReview": false
+    },
+    {
+      "id": "gentle-fluidity-gold",
+      "intent": "exact_lookup",
+      "query": "Gentle Fluidity Gold",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Maison Francis Kurkdjian | Gentle Fluidity Gold Maison Francis Kurkdjianfor women and men [136.00]",
+      "match": "Maison Francis Kurkdjian | Gentle Fluidity Gold Maison Francis Kurkdjianfor women and men [136.00]",
+      "manualReview": false
+    },
+    {
+      "id": "green-irish-tweed",
+      "intent": "exact_lookup",
+      "query": "Green Irish Tweed",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Creed | Green Irish Tweed Creedfor men [144.25]",
+      "match": "Creed | Green Irish Tweed Creedfor men [144.25]",
+      "manualReview": false
+    },
+    {
+      "id": "angels-share",
+      "intent": "exact_lookup",
+      "query": "Angels' Share",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "By Kilian | Angels' Share Anniversary Edition By Kilianfor women and men [112.00]",
+      "match": "By Kilian | Angels' Share Anniversary Edition By Kilianfor women and men [112.00]",
+      "manualReview": false
+    },
+    {
+      "id": "irish-leather",
+      "intent": "exact_lookup",
+      "query": "Irish Leather",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Memo Paris | Irish Leather Memo Parisfor women and men [115.00]",
+      "match": "Memo Paris | Irish Leather Memo Parisfor women and men [115.00]",
+      "manualReview": false
+    },
+    {
+      "id": "hacivat",
+      "intent": "exact_lookup",
+      "query": "Hacivat Nishane",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Nishane | Hacivat Nishanefor women and men [119.25]",
+      "match": "Nishane | Hacivat Nishanefor women and men [119.25]",
+      "manualReview": false
+    },
+    {
+      "id": "tobacco-vanille",
+      "intent": "exact_lookup",
+      "query": "Tom Ford Tobacco Vanille",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Tom Ford | Tobacco Vanille Tom Fordfor women and men [185.25]",
+      "match": "Tom Ford | Tobacco Vanille Tom Fordfor women and men [185.25]",
+      "manualReview": false
+    },
+    {
+      "id": "spicebomb-extreme",
+      "intent": "exact_lookup",
+      "query": "Spicebomb Extreme",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Viktor Rolf | Spicebomb Extreme Viktor&Rolffor men [109.00]",
+      "match": "Viktor Rolf | Spicebomb Extreme Viktor&Rolffor men [109.00]",
+      "manualReview": false
+    },
+    {
+      "id": "delina-exclusif",
+      "intent": "exact_lookup",
+      "query": "Delina Exclusif",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Parfums de Marly | DELINA EXCLUSIF [112.75]",
+      "match": "Parfums de Marly | DELINA EXCLUSIF [112.75]",
+      "manualReview": false
+    },
+    {
+      "id": "intense-cedrat-boise",
+      "intent": "exact_lookup",
+      "query": "Intense Cedrat Boise",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Mancera | Intense Cedrat Boise Mancerafor men [138.25]",
+      "match": "Mancera | Intense Cedrat Boise Mancerafor men [138.25]",
+      "manualReview": false
+    },
+    {
+      "id": "ombre-leather-16",
+      "intent": "exact_lookup",
+      "query": "Ombre Leather 16",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Tom Ford | Ombre Leather 16 Tom Fordfor women and men [142.00]",
+      "match": "Tom Ford | Ombre Leather 16 Tom Fordfor women and men [142.00]",
+      "manualReview": false
+    },
+    {
+      "id": "aventus-vs-aventus-cologne",
+      "intent": "comparison",
+      "query": "Aventus vs Aventus Cologne",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Creed | Aventus Cologne Creedfor men [228.58]",
+      "match": "Creed | Aventus Cologne Creedfor men [228.58]",
+      "manualReview": false
+    },
+    {
+      "id": "reflection-man-vs-reflection-45",
+      "intent": "comparison",
+      "query": "Reflection Man vs Reflection 45 Man",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Amouage | Reflection 45 Man Amouagefor men [216.25]",
+      "match": "Amouage | Reflection 45 Man Amouagefor men [216.25]",
+      "manualReview": false
+    },
+    {
+      "id": "layton-vs-herod",
+      "intent": "comparison",
+      "query": "Layton vs Herod",
+      "passed": true,
+      "matchedAt": 6,
+      "top1": "Sherod Marquez Artisan Perfumes | Moon River Sherod Marquez Artisan Perfumesfor women and men [125.33]",
+      "match": "Parfums de Marly | LAYTON [121.08]",
+      "manualReview": false
+    },
+    {
+      "id": "naxos-vs-layton",
+      "intent": "comparison",
+      "query": "Xerjoff Naxos vs Layton",
+      "passed": true,
+      "matchedAt": 1,
+      "top1": "Parfums de Marly | LAYTON [117.75]",
+      "match": "Parfums de Marly | LAYTON [117.75]",
+      "manualReview": false
+    },
+    {
+      "id": "best-perfume-ever",
+      "intent": "negative_abstain",
+      "query": "best perfume ever",
+      "passed": false,
+      "matchedAt": null,
+      "top1": "Tauer Perfumes | 04 Reverie au Jardin Tauer Perfumesfor women [87.25]",
+      "match": "(no result)",
+      "manualReview": true
+    },
+    {
+      "id": "conflicting-vibe",
+      "intent": "negative_abstain",
+      "query": "fresh smoky aquatic leather",
+      "passed": false,
+      "matchedAt": null,
+      "top1": "AXE | Gold Fresh Iced Mint and Leather AXEfor men [107.00]",
+      "match": "(no result)",
+      "manualReview": true
+    }
+  ]
+}
