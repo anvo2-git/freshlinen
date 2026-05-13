@@ -401,7 +401,24 @@ Recommended result fields:
 - `matched_terms`
 - `judgment`
 
-## 12. References
+## 12. Benchmark checklist
+
+Use this checklist whenever you add or change eval cases:
+
+1. Does the judgment resolve to a real corpus URL?
+2. Is the intent clear?
+3. Is the case discriminative?
+4. Is the query representative of a real user task?
+5. Is the relevance label defensible?
+6. Does it avoid fuzzy duplicate credit?
+7. Does it cover a distinct failure mode?
+8. Does the qrels export still look canonical?
+9. Does the benchmark still have a healthy mix?
+10. Does a rerun change the score in a sensible way?
+11. Is the case hard enough to matter but not impossible?
+12. Would a second judge plausibly agree?
+
+## 13. References
 
 - BEIR metrics wiki: [Metrics available](https://github.com/beir-cellar/beir/wiki/Metrics-available)
 - BEIR paper: [OpenReview / BEIR](https://openreview.net/forum?id=wCu6T5xFjeJ)

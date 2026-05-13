@@ -73,6 +73,8 @@ The exported qrels/topics files live at `data/rag/eval.qrels` and `data/rag/eval
 The qrels use canonical corpus URLs as docno identifiers, so the benchmark stays
 anchored to real corpus rows instead of fuzzy name matches.
 The latest saved run for the dashboard lives at `data/rag/eval-latest.json`.
+The current write-up lives in `REFLECTION.md`, and the RAG backlog is tracked in
+`docs/rag-todo.md`.
 
 ## Data outputs
 

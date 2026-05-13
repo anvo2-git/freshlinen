@@ -7,6 +7,7 @@ import {
   loadManifest,
   resolveJudgmentDocs,
 } from "./rag-benchmark-common.mjs";
+import { queryRag } from "../src/lib/rag.ts";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const DEFAULT_FAIL_UNDER = 0.7;
@@ -17,6 +18,7 @@ function parseArgs(argv) {
     failUnder: DEFAULT_FAIL_UNDER,
     json: false,
     output: "",
+    local: process.env.RAG_LOCAL === "1",
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -33,6 +35,8 @@ function parseArgs(argv) {
     } else if (token === "--output") {
       args.output = argv[i + 1] || "";
       i += 1;
+    } else if (token === "--local") {
+      args.local = true;
     } else if (token === "--help" || token === "-h") {
       printHelpAndExit();
     }
@@ -42,7 +46,7 @@ function parseArgs(argv) {
 }
 
 function printHelpAndExit() {
-  console.log(`Usage: node scripts/rag-eval.mjs [--base-url http://127.0.0.1:3000] [--fail-under 0.7] [--json]`);
+  console.log(`Usage: node scripts/rag-eval.mjs [--base-url http://127.0.0.1:3000] [--fail-under 0.7] [--json] [--local]`);
   process.exit(0);
 }
 
@@ -154,7 +158,7 @@ function formatResult(result) {
 }
 
 async function main() {
-  const { baseUrl, failUnder, json, output } = parseArgs(process.argv);
+  const { baseUrl, failUnder, json, output, local } = parseArgs(process.argv);
   const manifest = loadManifest();
   const corpus = loadCorpus();
   const cases = Array.isArray(manifest.cases) ? manifest.cases : [];
@@ -202,12 +206,17 @@ async function main() {
   }
 
   for (const testCase of preparedCases) {
-    const url = `${baseUrl.replace(/\/$/, "")}/api/rag/query?q=${encodeURIComponent(testCase.query)}&limit=${testCase.target_rank ?? defaults.target_rank ?? 5}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`RAG API failed for "${testCase.query}" with HTTP ${response.status}`);
-    }
-    const data = await response.json();
+    const limit = testCase.target_rank ?? defaults.target_rank ?? 5;
+    const data = local
+      ? queryRag(testCase.query, limit)
+      : await (async () => {
+          const url = `${baseUrl.replace(/\/$/, "")}/api/rag/query?q=${encodeURIComponent(testCase.query)}&limit=${limit}`;
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`RAG API failed for "${testCase.query}" with HTTP ${response.status}`);
+          }
+          return response.json();
+        })();
     const scored = scoreCase(data.results ?? [], testCase, defaults);
     summary.results.push(scored);
     if (testCase.success_policy === "manual_review") {
@@ -230,7 +239,7 @@ async function main() {
     return acc;
   }, {});
   const report = {
-    baseUrl: summary.baseUrl,
+    baseUrl: local ? "local" : summary.baseUrl,
     total: summary.total,
     passed: summary.passed,
     exactPassed: summary.exactPassed,

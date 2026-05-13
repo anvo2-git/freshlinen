@@ -19,6 +19,8 @@ type RagResult = {
   matched_terms: string[];
   snippet: string;
   quality_score: number;
+  rationale: string;
+  comparison_part_hits?: number[];
 };
 
 type RagResponse = {
@@ -26,6 +28,8 @@ type RagResponse = {
   limit: number;
   corpus_size: number;
   indexed_size: number;
+  intent: string;
+  answer: string;
   results: RagResult[];
   error?: string;
 };
@@ -135,8 +139,14 @@ export default function RagPage() {
           )}
 
           {result && (
-            <div className="rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-violet-600">
-              {result.results.length} results from {result.corpus_size.toLocaleString()} docs
+            <div className="space-y-3">
+              <div className="rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-violet-600">
+                {result.results.length} results from {result.corpus_size.toLocaleString()} docs · {result.intent}
+              </div>
+              <div className="rounded-2xl border border-violet-200 bg-white p-5">
+                <div className="text-xs uppercase tracking-[0.2em] text-violet-400">Answer brief</div>
+                <p className="mt-3 text-sm leading-relaxed text-violet-800">{result.answer}</p>
+              </div>
             </div>
           )}
 
@@ -171,6 +181,7 @@ export default function RagPage() {
               </div>
 
               <p className="mt-4 text-sm leading-relaxed text-violet-700">{item.snippet}</p>
+              <p className="mt-3 text-xs leading-relaxed text-violet-500">{item.rationale}</p>
 
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
                 {item.accords.slice(0, 6).map((accord) => (

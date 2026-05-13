@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import Fuse from "fuse.js";
 
 const GENDER_SUFFIXES = ["for women and men", "for women", "for men"];
 
@@ -35,6 +36,8 @@ export interface RagResult {
   matched_terms: string[];
   snippet: string;
   quality_score: number;
+  rationale: string;
+  comparison_part_hits?: number[];
 }
 
 export interface RagQueryResponse {
@@ -42,6 +45,8 @@ export interface RagQueryResponse {
   limit: number;
   corpus_size: number;
   indexed_size: number;
+  intent: string;
+  answer: string;
   results: RagResult[];
 }
 
@@ -65,6 +70,39 @@ interface QueryIntent {
   isExactLookup: boolean;
   isNegative: boolean;
   parts: string[];
+}
+
+interface ScoredCandidate {
+  doc: RagDocument;
+  score: number;
+  tokenScore: number;
+  fuzzyScore: number;
+  matchedTerms: string[];
+  qualityScore: number;
+  comparisonPartHits: number[];
+}
+
+function buildRationale(doc: RagDocument, matchedTerms: string[], fuzzyScore: number, query: string, intent: QueryIntent): string {
+  const reasons: string[] = [];
+  if (matchedTerms.length > 0) {
+    reasons.push(`matched: ${matchedTerms.slice(0, 4).join(", ")}`);
+  }
+  if (doc.source_type === "official_enrichment") {
+    reasons.push("official product record");
+  }
+  if ((doc.accords?.length ?? 0) > 0) {
+    reasons.push(`accords: ${(doc.accords || []).slice(0, 3).join(", ")}`);
+  }
+  if ((doc.notes?.length ?? 0) > 0) {
+    reasons.push(`notes: ${(doc.notes || []).slice(0, 4).join(", ")}`);
+  }
+  if (fuzzyScore > 0) {
+    reasons.push(`semantic boost for "${query.trim()}"`);
+  }
+  if (intent.isComparison) {
+    reasons.push("comparison target");
+  }
+  return reasons.length > 0 ? reasons.join(" · ") : "corpus-backed match";
 }
 
 const STOP_WORDS = new Set([
@@ -102,6 +140,7 @@ const STOP_WORDS = new Set([
 let cache: {
   docs: RagDocument[];
   indexed: IndexedDocument[];
+  fuse: Fuse<IndexedDocument>;
   corpusMtimeMs: number;
 } | null = null;
 
@@ -198,6 +237,22 @@ function qualityScore(doc: RagDocument): number {
   return score;
 }
 
+function buildFuseIndex(indexed: IndexedDocument[]): Fuse<IndexedDocument> {
+  return new Fuse(indexed, {
+    includeScore: true,
+    ignoreLocation: true,
+    minMatchCharLength: 2,
+    shouldSort: true,
+    threshold: 0.38,
+    keys: [
+      { name: "canonicalNameText", weight: 0.38 },
+      { name: "titleText", weight: 0.24 },
+      { name: "noteText", weight: 0.2 },
+      { name: "searchText", weight: 0.18 },
+    ],
+  });
+}
+
 function buildIndexedDocument(doc: RagDocument): IndexedDocument {
   const accords = parseList(doc.accords);
   const notes = parseList(doc.notes);
@@ -238,10 +293,10 @@ function buildIndexedDocument(doc: RagDocument): IndexedDocument {
   };
 }
 
-function loadCorpus(): { docs: RagDocument[]; indexed: IndexedDocument[] } {
+function loadCorpus(): { docs: RagDocument[]; indexed: IndexedDocument[]; fuse: Fuse<IndexedDocument> } {
   const corpusPath = path.join(process.cwd(), "data", "rag", "perfume-documents.jsonl");
   if (!fs.existsSync(corpusPath)) {
-    cache = { docs: [], indexed: [], corpusMtimeMs: 0 };
+    cache = { docs: [], indexed: [], fuse: buildFuseIndex([]), corpusMtimeMs: 0 };
     return cache;
   }
 
@@ -279,7 +334,7 @@ function loadCorpus(): { docs: RagDocument[]; indexed: IndexedDocument[] } {
     }
   }
 
-  cache = { docs, indexed, corpusMtimeMs };
+  cache = { docs, indexed, fuse: buildFuseIndex(indexed), corpusMtimeMs };
   return cache;
 }
 
@@ -341,8 +396,60 @@ function splitQueryParts(query: string): string[] {
     .filter(Boolean);
 }
 
+function summarizeAccords(result: RagResult): string[] {
+  return (result.accords || []).slice(0, 3);
+}
+
+function summarizeNotes(result: RagResult): string[] {
+  return (result.notes || []).slice(0, 4);
+}
+
+function describeTopResult(result: RagResult): string {
+  const parts: string[] = [];
+  const accords = summarizeAccords(result);
+  const notes = summarizeNotes(result);
+  if (accords.length > 0) {
+    parts.push(`accords: ${accords.join(", ")}`);
+  }
+  if (notes.length > 0) {
+    parts.push(`notes: ${notes.join(", ")}`);
+  }
+  if (result.release_signal) {
+    parts.push(result.release_signal);
+  }
+  return parts.join(" · ");
+}
+
+function buildAnswer(query: string, intent: QueryIntent, results: RagResult[]): string {
+  if (results.length === 0) {
+    return "No strong matches surfaced. Try a perfume name, a few notes, or a narrower vibe.";
+  }
+
+  const top = results.slice(0, 3);
+  const topNames = top.map((item) => `${item.brand} ${item.name}`.trim());
+
+  if (intent.isComparison && top.length >= 2) {
+    const [left, right] = top;
+    const leftSummary = describeTopResult(left) || "a canonical match";
+    const rightSummary = describeTopResult(right) || "a nearby alternative";
+    return `${left.brand} ${left.name} and ${right.brand} ${right.name} are the clearest comparison anchors here. ${leftSummary}. ${rightSummary}.`;
+  }
+
+  if (intent.isExactLookup) {
+    const topResult = top[0];
+    return `Best match: ${topResult.brand} ${topResult.name}. ${describeTopResult(topResult) || "This looks like the canonical perfume record."}`;
+  }
+
+  if (intent.isAlternative) {
+    return `Closest alternatives: ${topNames.join("; ")}. These are the nearest corpus-backed matches to the seed perfume or vibe.`;
+  }
+
+  const names = top.map((item) => `${item.brand} ${item.name}`.trim());
+  return `Top matches: ${names.join("; ")}. The ranking favors perfumes whose notes, accords, and product names overlap the query.`;
+}
+
 export function queryRag(query: string, limit = 5): RagQueryResponse {
-  const { docs, indexed } = loadCorpus();
+  const { docs, indexed, fuse } = loadCorpus();
   const normalizedQuery = normalize(query);
   const terms = uniq(tokenize(query));
   const intent = parseQueryIntent(query);
@@ -355,13 +462,45 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
       limit: maxResults,
       corpus_size: docs.length,
       indexed_size: indexed.length,
+      intent: "unknown",
+      answer: "No strong matches surfaced. Try a perfume name, a few notes, or a narrower vibe.",
       results: [],
     };
   }
 
-  const scoredResults = indexed
+  const fuzzyBoosts = new Map<string, { score: number; rank: number }>();
+  const fuseMatches = fuse.search(query).slice(0, 160);
+  for (let i = 0; i < fuseMatches.length; i += 1) {
+    const hit = fuseMatches[i];
+    const score = typeof hit.score === "number" ? Math.max(0, 1 - hit.score) * 35 : 0;
+    const key = hit.item.doc.doc_id;
+    const current = fuzzyBoosts.get(key);
+    const rankBoost = Math.max(0, 16 - i * 0.09);
+    const combined = score + rankBoost;
+    if (!current || combined > current.score) {
+      fuzzyBoosts.set(key, { score: combined, rank: i + 1 });
+    }
+  }
+
+  for (const part of intent.parts) {
+    const partHits = fuse.search(part).slice(0, 80);
+    for (let i = 0; i < partHits.length; i += 1) {
+      const hit = partHits[i];
+      const score = typeof hit.score === "number" ? Math.max(0, 1 - hit.score) * 20 : 0;
+      const key = hit.item.doc.doc_id;
+      const current = fuzzyBoosts.get(key);
+      const rankBoost = Math.max(0, 10 - i * 0.08);
+      const combined = score + rankBoost;
+      if (!current || combined > current.score) {
+        fuzzyBoosts.set(key, { score: combined, rank: i + 1 });
+      }
+    }
+  }
+
+  const scoredResults: ScoredCandidate[] = indexed
     .map((entry) => {
       let score = 0;
+      const fuzzyScore = fuzzyBoosts.get(entry.doc.doc_id)?.score ?? 0;
       const matchedTerms: string[] = [];
       const comparisonPartHits: number[] = [];
 
@@ -467,10 +606,12 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
       const coverage = matchedTerms.length / terms.length;
       score += coverage * 20;
       score += entry.qualityScore * 0.75;
+      score += fuzzyScore;
 
       return {
         doc: entry.doc,
         score,
+        fuzzyScore,
         matchedTerms: uniq(matchedTerms),
         qualityScore: entry.qualityScore,
         comparisonPartHits: uniq(comparisonPartHits),
@@ -484,7 +625,7 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
       }
       return b.qualityScore - a.qualityScore;
     })
-    .map(({ doc, score, matchedTerms, qualityScore, comparisonPartHits }) => ({
+    .map(({ doc, score, fuzzyScore, matchedTerms, qualityScore, comparisonPartHits }) => ({
       doc_id: doc.doc_id,
       source_type: doc.source_type,
       brand: doc.brand,
@@ -506,6 +647,7 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
       ),
       quality_score: qualityScore,
       comparison_part_hits: comparisonPartHits,
+      rationale: buildRationale(doc, matchedTerms, fuzzyScore, query, intent),
     }));
 
   let results = scoredResults;
@@ -529,11 +671,23 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
 
   results = results.slice(0, maxResults);
 
+  const answer = buildAnswer(query, intent, results);
+
   return {
     query,
     limit: maxResults,
     corpus_size: docs.length,
     indexed_size: indexed.length,
+    intent: intent.isComparison
+      ? "comparison"
+      : intent.isAlternative
+        ? "alternative"
+        : intent.isExactLookup
+          ? "exact_lookup"
+          : intent.isNegative
+            ? "negative"
+            : "vibe_search",
+    answer,
     results,
   };
 }

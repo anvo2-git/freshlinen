@@ -34,3 +34,13 @@ The broader lesson is that multi-vendor stacks (Next.js + Clerk + Supabase + Ope
 
 Ian:
 Honestly, not... a whole not in the beginning? And also near the end. I fed Claude Andre's slides, and Claude followed it, and whenever Claude needed anythnig from me I just followed her instructions. And then things kinda just worked out. I took it upon myself to kind of google/youtube/etc etc things to get an understanding and un-blackbox the process, but that's entirely orthogonal to having a functional simple auth + backend system vibecoded by Claude. I reckon that the more you know what's going on the easier it would be for you to help Claude unfuck itself (because some of the errors took her quite awhile).
+
+## 5. RAG addendum
+
+The perfume RAG work now goes beyond a plain lexical search prototype. I built a first-pass retrieval layer over the merged perfume corpus, exposed it at `/api/rag/query` and `/rag`, and then tightened the benchmark into a qrels-style evaluation set anchored to canonical corpus URLs. The evaluator now has a local mode, a saved latest run, and a dashboard at `/rag/eval` so the benchmark is inspectable instead of hidden in a script.
+
+After calibrating the eval set, I upgraded the retriever itself: it now combines token overlap with fuzzy candidate boosts, canonical name handling, and a short answer brief that summarizes the best hits in perfume language. The dashboard and benchmark docs now reflect the same canonical corpus-backed judgments, so the retrieval behavior and the evaluation protocol are aligned instead of drifting apart.
+
+What I learned is that the benchmark has to come first if the RAG is meant to be useful. Once the eval started resolving to real corpus URLs and using graded judgments, it became obvious which query types were strong and which ones still needed work. That made the retrieval tuning meaningful instead of subjective.
+
+The next useful move is to keep improving the answer quality and ranking on vibe, similarity, and comparison queries while preserving exact lookup reliability.
