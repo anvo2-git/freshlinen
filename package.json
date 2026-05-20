@@ -17,7 +17,9 @@
     "rag-export": "node scripts/export-rag-benchmark.mjs",
     "rag-eval": "node scripts/rag-eval.mjs",
     "rag-fallback-test": "node scripts/test-rag-fallback.mjs",
-    "postinstall": "node scripts/patch-esm.js"
+    "postinstall": "node scripts/patch-esm.js",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.2.1",
@@ -41,6 +43,18 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "storybook": "^10.4.0",
+    "@storybook/nextjs-vite": "^10.4.0",
+    "@chromatic-com/storybook": "^5.2.1",
+    "@storybook/addon-vitest": "^10.4.0",
+    "@storybook/addon-a11y": "^10.4.0",
+    "@storybook/addon-docs": "^10.4.0",
+    "@storybook/addon-mcp": "^0.6.0",
+    "vite": "^8.0.13",
+    "eslint-plugin-storybook": "^10.4.0",
+    "vitest": "^4.1.6",
+    "@vitest/browser-playwright": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.6"
   }
 }

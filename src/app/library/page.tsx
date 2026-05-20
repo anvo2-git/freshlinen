@@ -7,31 +7,36 @@ import { useFavorites } from "@/lib/favorites-context";
 import { useApp } from "@/lib/context";
 import { loadCatalog } from "@/lib/data";
 import { PerfumeCard } from "@/components/PerfumeCard";
+import { useSupabase } from "@/lib/supabase/client";
 import {
   loadChatHistory,
   loadSavedRecommendations,
   type ChatHistoryEntry,
   type SavedRecommendation,
 } from "@/lib/library-store";
+import {
+  loadRecentChatHistory,
+  loadRecentSavedRecommendations,
+} from "@/lib/account-memory";
 import type { Perfume } from "@/lib/types";
 
 function MemoryCard({ item }: { item: SavedRecommendation }) {
   const href = item.official_url || item.url;
 
   return (
-    <article className="rounded-[1.5rem] border border-white/80 bg-white/80 p-4 shadow-[0_14px_40px_rgba(58,40,28,0.08)]">
+    <article className="rounded-[1.65rem] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,240,230,0.95))] p-4 shadow-[0_16px_42px_rgba(58,40,28,0.1)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-600">
             {item.source_type.replace(/_/g, " ")}
           </div>
-          <h3 className="mt-1 text-base font-semibold text-stone-950">
+          <h3 className="display-font mt-1 text-3xl font-semibold text-stone-950">
             {item.brand}
             <span className="mx-1 text-stone-400">/</span>
             {item.name}
           </h3>
         </div>
-        <div className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+        <div className="rounded-full border border-amber-200 bg-[linear-gradient(135deg,rgba(255,247,230,0.95),rgba(255,255,255,0.95))] px-2.5 py-1 text-xs font-semibold text-amber-700 shadow-[0_10px_20px_rgba(167,94,4,0.08)]">
           {item.score.toFixed(1)}
         </div>
       </div>
@@ -72,11 +77,11 @@ function MemoryCard({ item }: { item: SavedRecommendation }) {
 
 function HistoryCard({ item }: { item: ChatHistoryEntry }) {
   return (
-    <article className="rounded-[1.5rem] border border-stone-200 bg-white/80 p-4 shadow-[0_14px_40px_rgba(58,40,28,0.06)]">
+    <article className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,241,231,0.92))] p-4 shadow-[0_14px_40px_rgba(58,40,28,0.08)]">
       <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-600">
         {new Date(item.created_at).toLocaleDateString()}
       </div>
-      <h3 className="mt-2 text-base font-semibold text-stone-950">{item.query}</h3>
+      <h3 className="display-font mt-2 text-3xl font-semibold text-stone-950">{item.query}</h3>
       <p className="mt-2 text-sm leading-relaxed text-stone-700">{item.summary}</p>
       <p className="mt-3 text-xs uppercase tracking-[0.26em] text-stone-400">
         {item.results.length} result{item.results.length === 1 ? "" : "s"}
@@ -87,10 +92,14 @@ function HistoryCard({ item }: { item: ChatHistoryEntry }) {
 
 export default function LibraryPage() {
   const { userId, isLoaded } = useAuth();
+  const supabase = useSupabase();
   const { favoriteIds, isLoading } = useFavorites();
   const { state } = useApp();
   const [catalog, setCatalog] = useState<Perfume[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [remoteRecommendations, setRemoteRecommendations] = useState<SavedRecommendation[] | null>(null);
+  const [remoteHistory, setRemoteHistory] = useState<ChatHistoryEntry[] | null>(null);
+  const [memoryLoading, setMemoryLoading] = useState(false);
 
   useEffect(() => {
     loadCatalog().then((c) => {
@@ -99,13 +108,49 @@ export default function LibraryPage() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!userId) {
+      setRemoteRecommendations(null);
+      setRemoteHistory(null);
+      return;
+    }
+
+    let cancelled = false;
+    setMemoryLoading(true);
+    void (async () => {
+      try {
+        const [recommendations, history] = await Promise.all([
+          loadRecentSavedRecommendations(supabase, userId).catch(() => []),
+          loadRecentChatHistory(supabase, userId).catch(() => []),
+        ]);
+        if (cancelled) return;
+        setRemoteRecommendations(recommendations);
+        setRemoteHistory(history);
+      } finally {
+        if (!cancelled) setMemoryLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, userId, supabase]);
+
   const storage = useMemo(() => {
     if (!isLoaded || typeof window === "undefined") return null;
     return userId ? window.localStorage : window.sessionStorage;
   }, [isLoaded, userId]);
 
-  const savedRecommendations = useMemo(() => loadSavedRecommendations(storage), [storage]);
-  const history = useMemo(() => loadChatHistory(storage), [storage]);
+  const savedRecommendations = useMemo(
+    () => (userId ? remoteRecommendations ?? [] : loadSavedRecommendations(storage)),
+    [remoteRecommendations, storage, userId],
+  );
+  const history = useMemo(
+    () => (userId ? remoteHistory ?? [] : loadChatHistory(storage)),
+    [remoteHistory, storage, userId],
+  );
 
   if (!isLoaded) {
     return (
@@ -115,7 +160,7 @@ export default function LibraryPage() {
     );
   }
 
-  const loading = isLoading || catalogLoading;
+  const loading = isLoading || catalogLoading || memoryLoading;
   const catalogMap = new Map(catalog.map((p) => [p.id, p]));
   const scrapedMap = new Map(state.scrapedPerfumes.map((p) => [p.id, p]));
   const favorites: Perfume[] = [];
@@ -136,7 +181,7 @@ export default function LibraryPage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-amber-600">
               Personal memory
             </p>
-            <h1 className="mt-3 text-4xl font-black tracking-tight text-stone-950 sm:text-5xl">
+            <h1 className="display-font mt-3 text-5xl font-bold tracking-tight text-stone-950 sm:text-7xl">
               Library
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-relaxed text-stone-700">
@@ -154,7 +199,7 @@ export default function LibraryPage() {
         </div>
 
         {!userId ? (
-          <section className="mt-8 rounded-[2rem] border border-amber-200 bg-[linear-gradient(135deg,rgba(251,191,36,0.16),rgba(255,255,255,0.9))] p-6 shadow-[0_18px_60px_rgba(58,40,28,0.08)]">
+        <section className="mt-8 rounded-[2rem] border border-amber-200 bg-[linear-gradient(135deg,rgba(251,191,36,0.18),rgba(255,255,255,0.94))] p-6 shadow-[0_18px_60px_rgba(58,40,28,0.1)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-amber-600">
               Sign in optional
             </p>
@@ -174,7 +219,7 @@ export default function LibraryPage() {
         ) : null}
 
         <section className="mt-8 grid gap-5 lg:grid-cols-3">
-          <div className="rounded-[2rem] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,40,28,0.08)]">
+          <div className="rounded-[2rem] border border-stone-200 bg-white/85 p-5 shadow-[0_18px_60px_rgba(58,40,28,0.1)]">
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
               Favorites
             </div>
@@ -183,7 +228,7 @@ export default function LibraryPage() {
               Saved perfumes from the catalog and anything you&apos;ve explicitly kept around.
             </p>
           </div>
-          <div className="rounded-[2rem] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,40,28,0.08)]">
+          <div className="rounded-[2rem] border border-stone-200 bg-white/85 p-5 shadow-[0_18px_60px_rgba(58,40,28,0.1)]">
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
               Recommendations
             </div>
@@ -192,7 +237,7 @@ export default function LibraryPage() {
               Perfumes the assistant surfaced during chat and you chose to keep.
             </p>
           </div>
-          <div className="rounded-[2rem] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,40,28,0.08)]">
+          <div className="rounded-[2rem] border border-stone-200 bg-white/85 p-5 shadow-[0_18px_60px_rgba(58,40,28,0.1)]">
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
               Query threads
             </div>
@@ -205,13 +250,13 @@ export default function LibraryPage() {
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <section className="space-y-5">
-            <div className="rounded-[2rem] border border-white/80 bg-[linear-gradient(180deg,rgba(255,250,243,0.96),rgba(246,239,230,0.94))] p-6 shadow-[0_18px_60px_rgba(58,40,28,0.08)]">
+            <div className="rounded-[2rem] border border-white/85 bg-[linear-gradient(180deg,rgba(255,250,243,0.98),rgba(246,239,230,0.96))] p-6 shadow-[0_18px_60px_rgba(58,40,28,0.1)]">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
                     Saved recommendations
                   </div>
-                  <h2 className="mt-2 text-2xl font-bold text-stone-950">
+                  <h2 className="display-font mt-2 text-4xl font-semibold text-stone-950">
                     A shelf of what the assistant has already shown you
                   </h2>
                 </div>
@@ -235,7 +280,7 @@ export default function LibraryPage() {
               )}
             </div>
 
-            <div className="rounded-[2rem] border border-white/80 bg-white/80 p-6 shadow-[0_18px_60px_rgba(58,40,28,0.08)]">
+            <div className="rounded-[2rem] border border-white/85 bg-white/85 p-6 shadow-[0_18px_60px_rgba(58,40,28,0.1)]">
               <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
                 Favorites
               </div>

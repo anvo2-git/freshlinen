@@ -50,3 +50,7 @@ data/rag/perfume-fts.db
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+*storybook.log
+storybook-static
+src/stories/

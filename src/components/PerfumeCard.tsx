@@ -21,15 +21,16 @@ export function PerfumeCard({
     .map(([name]) => name);
 
   return (
-    <div className="rounded-[1.5rem] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(247,241,233,0.9))] p-4 shadow-[0_12px_35px_rgba(58,40,28,0.06)] transition-transform hover:-translate-y-0.5">
+    <div className="group relative overflow-hidden rounded-[1.75rem] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,241,232,0.95),rgba(243,232,220,0.92))] p-4 shadow-[0_18px_50px_rgba(58,40,28,0.08)] transition-transform hover:-translate-y-1">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,rgba(249,115,22,0.95),rgba(234,179,8,0.9),rgba(168,85,247,0.85))]" />
       <div className="flex items-start justify-between gap-2">
         <Link href={`/perfume/${perfume.id}`} className="flex-1 min-w-0">
-          <h3 className="truncate text-base font-semibold text-stone-950 transition-colors hover:text-amber-700">
+          <h3 className="display-font text-3xl font-semibold leading-[0.92] text-stone-950 transition-colors group-hover:text-amber-700">
             {perfume.n}{" "}
             {genderSym && <span className="font-light text-stone-400">{genderSym}</span>}
           </h3>
           {perfume.b && (
-            <p className="mt-0.5 text-xs text-stone-500">{perfume.b}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-stone-500">{perfume.b}</p>
           )}
         </Link>
         <div className="flex-shrink-0 flex items-center gap-1">
@@ -38,12 +39,14 @@ export function PerfumeCard({
           {action}
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
-        <span>{perfume.r.toFixed(1)} / 5</span>
-        <span className="text-stone-300">|</span>
+      <div className="mt-3 flex items-center gap-2 text-xs text-stone-600">
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">
+          {perfume.r.toFixed(1)} / 5
+        </span>
+        <span className="text-stone-300">•</span>
         <span>{perfume.rc.toLocaleString()} ratings</span>
       </div>
-      <div className="mt-2.5 flex flex-wrap gap-1">
+      <div className="mt-3 flex flex-wrap gap-1.5">
         {accords.map((accord, i) => (
           <AccordPill key={accord} accord={accord} large={i < 2} />
         ))}

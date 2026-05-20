@@ -4,6 +4,17 @@ import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  QUIZ_QUESTIONS,
+  buildBeginnerQuizProfile,
+  buildBeginnerQuizQuery,
+  getFilteredAvoidOptions,
+  sanitizeQuizAnswers,
+  summarizeBeginnerQuizProfile,
+  type BeginnerQuizProfile,
+  type QuizStepKey,
+} from "@/lib/quiz";
+import { useSupabase } from "@/lib/supabase/client";
+import {
   loadChatHistory,
   loadSavedRecommendations,
   readOnboardingChoice,
@@ -14,6 +25,18 @@ import {
   type OnboardingChoice,
   type SavedRecommendation,
 } from "@/lib/library-store";
+import {
+  appendChatMessage,
+  createChatThread,
+  loadRecentChatHistory,
+  loadRecentChatThreads,
+  loadRecentSavedRecommendations,
+  loadUserProfile,
+  summarizeThreadTitle,
+  upsertSavedRecommendation,
+  upsertUserProfile,
+  updateChatThread,
+} from "@/lib/account-memory";
 
 type RagResult = {
   doc_id: string;
@@ -56,27 +79,6 @@ type ChatMessage =
       role: "user";
       text: string;
     };
-
-const NEW_USER_STEPS = [
-  {
-    key: "likes",
-    label: "What do you usually like?",
-    helper: "Think broad families: fresh woods, vanilla, rose, incense, citrus, musk.",
-    chips: ["clean woods", "vanilla", "rose", "incense", "citrus", "musks"],
-  },
-  {
-    key: "dislikes",
-    label: "What do you want to avoid?",
-    helper: "Tell me what turns you off, even if it is very specific.",
-    chips: ["too sweet", "powdery", "aquatic", "fruity", "synthetic", "smoky"],
-  },
-  {
-    key: "occasion",
-    label: "What are you dressing for?",
-    helper: "The same scent can feel right for work, dates, heat, or evenings out.",
-    chips: ["everyday", "office", "date night", "cold weather", "heat", "special occasion"],
-  },
-] as const;
 
 const QUICK_PROMPTS = [
   "Teach me what I like.",
@@ -199,19 +201,26 @@ function ResultCard({
 
 export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }) {
   const { userId, isLoaded } = useAuth();
+  const supabase = useSupabase();
   const [hydrated, setHydrated] = useState(false);
   const [storageMode, setStorageMode] = useState<"local" | "session" | null>(null);
   const [accessChoice, setAccessChoice] = useState<OnboardingChoice | null>(null);
   const [stage, setStage] = useState<"gate" | "onboarding" | "ready">("gate");
   const [stepIndex, setStepIndex] = useState(0);
-  const [answers, setAnswers] = useState({ likes: "", dislikes: "", occasion: "" });
-  const [stepValue, setStepValue] = useState("");
+  const [quizAnswers, setQuizAnswers] = useState<Record<QuizStepKey, string[]>>({
+    want: [],
+    avoid: [],
+    tone: [],
+    priority: [],
+  });
+  const [beginnerProfile, setBeginnerProfile] = useState<BeginnerQuizProfile | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatHistoryEntry[]>([]);
   const [savedRecommendations, setSavedRecommendations] = useState<SavedRecommendation[]>([]);
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -223,11 +232,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
         ? window.localStorage
         : window.sessionStorage;
 
-    const choice = readOnboardingChoice(storage);
     setStorageMode(nextStorageMode);
-    setAccessChoice(choice);
-    setChatHistory(loadChatHistory(storage));
-    setSavedRecommendations(loadSavedRecommendations(storage));
     setMessages([
       {
         id: "welcome",
@@ -238,24 +243,70 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
             : "Search the corpus like a conversation. Ask for a vibe, a note family, or a perfume you want to move toward.",
       },
     ]);
-    setStage(choice === "new" ? "onboarding" : choice === "returning" ? "ready" : "gate");
-    setStepIndex(0);
-    setAnswers({ likes: "", dislikes: "", occasion: "" });
-    setStepValue("");
     setQuery("");
     setError("");
     setLoading(false);
+    setStepIndex(0);
+    setQuizAnswers({
+      want: [],
+      avoid: [],
+      tone: [],
+      priority: [],
+    });
+
+    if (userId) {
+      void (async () => {
+        try {
+          const [profile, history, recs, threads] = await Promise.all([
+            loadUserProfile(supabase, userId).catch(() => null),
+            loadRecentChatHistory(supabase, userId).catch(() => []),
+            loadRecentSavedRecommendations(supabase, userId).catch(() => []),
+            loadRecentChatThreads(supabase, userId).catch(() => []),
+          ]);
+
+          const choice = profile?.onboarding_choice ?? (threads.length > 0 ? "returning" : null);
+          setAccessChoice(choice);
+          setBeginnerProfile(profile?.taste_profile ?? null);
+          setChatHistory(history);
+          setSavedRecommendations(recs);
+          setCurrentThreadId(threads[0]?.id ?? null);
+          setStage(choice === "new" ? "onboarding" : choice === "returning" ? "ready" : "gate");
+          setHydrated(true);
+        } catch {
+          const choice = readOnboardingChoice(storage);
+          setAccessChoice(choice);
+          setChatHistory(loadChatHistory(storage));
+          setSavedRecommendations(loadSavedRecommendations(storage));
+          setCurrentThreadId(null);
+          setStage(choice === "new" ? "onboarding" : choice === "returning" ? "ready" : "gate");
+          setHydrated(true);
+        }
+      })();
+      return;
+    }
+
+    const choice = readOnboardingChoice(storage);
+    setAccessChoice(choice);
+    setChatHistory(loadChatHistory(storage));
+    setSavedRecommendations(loadSavedRecommendations(storage));
+    setCurrentThreadId(null);
+    setStage(choice === "new" ? "onboarding" : choice === "returning" ? "ready" : "gate");
+    setBeginnerProfile(null);
     setHydrated(true);
-  }, [isLoaded, userId, surface]);
+  }, [isLoaded, userId, surface, supabase]);
 
   const currentStorage = useMemo(() => {
     if (typeof window === "undefined" || !storageMode) return null;
     return storageMode === "local" ? window.localStorage : window.sessionStorage;
   }, [storageMode]);
 
-  const currentStep = NEW_USER_STEPS[stepIndex];
-  const quickPrompts =
-    stage === "onboarding" ? NEW_USER_STEPS[stepIndex]?.chips ?? QUICK_PROMPTS : QUICK_PROMPTS;
+  const currentStep = QUIZ_QUESTIONS[stepIndex];
+  const visibleOptions =
+    stage === "onboarding" && currentStep?.key === "avoid"
+      ? getFilteredAvoidOptions(quizAnswers.want)
+      : currentStep?.options ?? [];
+  const currentSelections = currentStep ? quizAnswers[currentStep.key] ?? [] : [];
+  const quickPrompts = stage === "onboarding" ? [] : QUICK_PROMPTS;
   const recentPrompts = chatHistory.slice(0, 3).map((item) => item.query).filter(Boolean);
 
   function appendMessage(message: ChatMessage) {
@@ -268,15 +319,21 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
       writeOnboardingChoice(storage, "new");
     }
     setAccessChoice("new");
+    setCurrentThreadId(null);
     setStage("onboarding");
     setStepIndex(0);
-    setStepValue("");
-    setAnswers({ likes: "", dislikes: "", occasion: "" });
+    setQuizAnswers({
+      want: [],
+      avoid: [],
+      tone: [],
+      priority: [],
+    });
+    setBeginnerProfile(null);
     setMessages([
       {
         id: "welcome",
         role: "assistant",
-        text: "Let’s build your taste profile first. I’ll ask three focused questions, then we’ll move into open chat.",
+        text: "Let’s build your taste profile first. I’ll ask a few small questions, then we’ll move into open chat.",
       },
     ]);
   }
@@ -287,6 +344,13 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
       writeOnboardingChoice(storage, "returning");
     }
     setAccessChoice("returning");
+    setQuizAnswers({
+      want: [],
+      avoid: [],
+      tone: [],
+      priority: [],
+    });
+    setBeginnerProfile(null);
     setStage("ready");
     setMessages([
       {
@@ -298,11 +362,100 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
             : "Ready. Ask for a search, a recommendation, or a scent direction and I will pull three options.",
       },
     ]);
+
+    if (userId) {
+      void upsertUserProfile(supabase, userId, {
+        onboarding_choice: "returning",
+        ...(beginnerProfile ? { taste_profile: beginnerProfile } : {}),
+        include_favorites_default: true,
+        ranking_preference: beginnerProfile?.rankingPreference ?? "balanced",
+        last_query: null,
+      }).catch((error) => {
+        console.warn("Failed to persist returning choice:", error);
+      });
+    }
   }
 
-  function saveHistoryEntry(queryText: string, results: RagResult[]) {
+  async function advanceOnboarding(nextAnswers: Record<QuizStepKey, string[]>) {
+    const sanitized = sanitizeQuizAnswers(nextAnswers);
+    const profile = buildBeginnerQuizProfile(sanitized);
+    setBeginnerProfile(profile);
+    setAccessChoice("new");
+    setStage("ready");
+    setStepIndex(0);
+    const summaryText =
+      summarizeBeginnerQuizProfile(profile).join(" · ") ||
+      "You can start chatting and I’ll keep the first three suggestions disciplined.";
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `onboarding-summary-${Date.now()}`,
+        role: "assistant",
+        title: "Taste profile set",
+        text: summaryText,
+      },
+    ]);
+
+    if (userId) {
+      try {
+        await upsertUserProfile(supabase, userId, {
+          onboarding_choice: "new",
+          taste_profile: profile,
+          include_favorites_default: true,
+          ranking_preference: profile.rankingPreference,
+          last_query: buildBeginnerQuizQuery(profile) || null,
+        });
+
+        if (!currentThreadId) {
+          const thread = await createChatThread(supabase, {
+            userId,
+            title: summarizeThreadTitle(summaryText),
+            surface,
+            summary: summaryText,
+            includeFavorites: true,
+            rankingPreference: profile.rankingPreference,
+            seedIds: [],
+            tasteProfile: profile,
+          });
+          setCurrentThreadId(thread?.id ?? null);
+        } else {
+          await updateChatThread(supabase, currentThreadId, {
+            summary: summaryText,
+            taste_profile: profile,
+            ranking_preference: profile.rankingPreference,
+            last_message_at: new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        console.warn("Failed to persist onboarding profile:", error);
+      }
+    }
+
+    const starterQuery = buildBeginnerQuizQuery(profile);
+    if (starterQuery) {
+      setQuery(starterQuery);
+      void runQuery(starterQuery, profile.rankingPreference);
+    }
+  }
+
+  function advanceOnboardingStep(skipCurrent = false) {
+    if (!currentStep) return;
+    const current = skipCurrent ? [] : (quizAnswers[currentStep.key] ?? []);
+    const nextAnswers = sanitizeQuizAnswers({ ...quizAnswers, [currentStep.key]: current });
+    setQuizAnswers(nextAnswers);
+    if (stepIndex < QUIZ_QUESTIONS.length - 1) {
+      setStepIndex((prev) => prev + 1);
+      return;
+    }
     const storage = currentStorage;
-    if (!storage) return;
+    if (storage) {
+      writeOnboardingChoice(storage, "new");
+    }
+    void advanceOnboarding(nextAnswers);
+  }
+
+  async function saveHistoryEntry(queryText: string, results: RagResult[]) {
+    const storage = currentStorage;
     const entry: ChatHistoryEntry = {
       query: queryText,
       summary: results.length
@@ -311,18 +464,102 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
       created_at: new Date().toISOString(),
       results: results.map((result) => persistResult(result, queryText)),
     };
-    saveChatHistory(storage, entry);
-    setChatHistory(loadChatHistory(storage));
+
+    if (!userId) {
+      if (!storage) return;
+      saveChatHistory(storage, entry);
+      setChatHistory(loadChatHistory(storage));
+      return;
+    }
+
+    try {
+      let threadId = currentThreadId;
+      if (!threadId) {
+        const thread = await createChatThread(supabase, {
+          userId,
+          title: summarizeThreadTitle(queryText),
+          surface,
+          summary: entry.summary,
+          includeFavorites: true,
+          rankingPreference: beginnerProfile?.rankingPreference ?? "balanced",
+          seedIds: [],
+          tasteProfile: beginnerProfile,
+        });
+        threadId = thread?.id ?? null;
+        setCurrentThreadId(threadId);
+      }
+
+      if (threadId) {
+        await appendChatMessage(supabase, {
+          threadId,
+          userId,
+          role: "user",
+          content: queryText,
+          metadata: { surface, kind: "query" },
+        });
+        await appendChatMessage(supabase, {
+          threadId,
+          userId,
+          role: "assistant",
+          content: entry.summary,
+          metadata: { results: entry.results, query: queryText, surface },
+        });
+        await updateChatThread(supabase, threadId, {
+          title: summarizeThreadTitle(queryText),
+          summary: entry.summary,
+          ranking_preference: beginnerProfile?.rankingPreference ?? "balanced",
+          taste_profile: beginnerProfile,
+          last_message_at: entry.created_at,
+        });
+      }
+
+      await upsertUserProfile(supabase, userId, {
+        onboarding_choice: accessChoice ?? "returning",
+        ...(beginnerProfile ? { taste_profile: beginnerProfile } : {}),
+        include_favorites_default: true,
+        ranking_preference: beginnerProfile?.rankingPreference ?? "balanced",
+        last_query: queryText,
+      });
+
+      setChatHistory(await loadRecentChatHistory(supabase, userId));
+    } catch (error) {
+      console.warn("Failed to persist chat history:", error);
+      if (storage) {
+        saveChatHistory(storage, entry);
+        setChatHistory(loadChatHistory(storage));
+      }
+    }
   }
 
-  function saveToLibrary(result: RagResult, queryText: string) {
+  async function saveToLibrary(result: RagResult, queryText: string) {
     const storage = currentStorage;
-    if (!storage) return;
-    saveRecommendation(storage, persistResult(result, queryText));
-    setSavedRecommendations(loadSavedRecommendations(storage));
+    const recommendation = persistResult(result, queryText);
+
+    if (!userId) {
+      if (!storage) return;
+      saveRecommendation(storage, recommendation);
+      setSavedRecommendations(loadSavedRecommendations(storage));
+      return;
+    }
+
+    try {
+      await upsertSavedRecommendation(supabase, {
+        ...recommendation,
+        userId,
+        threadId: currentThreadId,
+        metadata: { query: queryText, surface },
+      });
+      setSavedRecommendations(await loadRecentSavedRecommendations(supabase, userId));
+    } catch (error) {
+      console.warn("Failed to persist saved recommendation:", error);
+      if (storage) {
+        saveRecommendation(storage, recommendation);
+        setSavedRecommendations(loadSavedRecommendations(storage));
+      }
+    }
   }
 
-  async function runQuery(nextQuery = query) {
+  async function runQuery(nextQuery = query, rankingPreference: BeginnerQuizProfile["rankingPreference"] = beginnerProfile?.rankingPreference ?? "balanced") {
     const trimmed = nextQuery.trim();
     if (trimmed.length < 2 || loading) return;
 
@@ -332,7 +569,9 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     appendMessage({ id: `user-${Date.now()}`, role: "user", text: trimmed });
 
     try {
-      const res = await fetch(`/api/rag/query?q=${encodeURIComponent(trimmed)}&limit=3`);
+      const res = await fetch(
+        `/api/rag/query?q=${encodeURIComponent(trimmed)}&limit=3&ranking_preference=${rankingPreference}`
+      );
       const data = (await res.json()) as RagResponse;
       if (!res.ok) {
         const message = data.error || "RAG query failed.";
@@ -357,7 +596,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
       });
 
       if (topResults.length > 0) {
-        saveHistoryEntry(trimmed, topResults);
+        void saveHistoryEntry(trimmed, topResults);
       }
       setQuery("");
     } catch {
@@ -369,41 +608,37 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     }
   }
 
-  function submitOnboardingStep() {
-    const trimmed = stepValue.trim();
-    if (!trimmed) return;
-
-    const nextAnswers = { ...answers };
-    const key = NEW_USER_STEPS[stepIndex].key;
-    nextAnswers[key] = trimmed;
-    setAnswers(nextAnswers);
-
-    if (stepIndex < NEW_USER_STEPS.length - 1) {
-      setStepIndex((prev) => prev + 1);
-      setStepValue("");
+  function toggleOnboardingChoice(optionValue: string) {
+    if (!currentStep) return;
+    if (currentStep.kind === "multi") {
+      setQuizAnswers((prev) => {
+        const current = prev[currentStep.key] ?? [];
+        const selected = current.includes(optionValue);
+        const next = selected ? current.filter((value) => value !== optionValue) : [...current, optionValue];
+        if (!selected && typeof currentStep.maxSelections === "number" && next.length > currentStep.maxSelections) {
+          return prev;
+        }
+        return sanitizeQuizAnswers({ ...prev, [currentStep.key]: next });
+      });
       return;
     }
 
+    const nextAnswers = sanitizeQuizAnswers({ ...quizAnswers, [currentStep.key]: optionValue === "skip" ? [] : [optionValue] });
+    setQuizAnswers(nextAnswers);
+    if (stepIndex < QUIZ_QUESTIONS.length - 1) {
+      setStepIndex((prev) => prev + 1);
+      return;
+    }
     const storage = currentStorage;
     if (storage) {
       writeOnboardingChoice(storage, "new");
     }
-    setAccessChoice("new");
-    setStage("ready");
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        title: "Taste profile set",
-        text: `You like ${nextAnswers.likes}. You want to avoid ${nextAnswers.dislikes}. For ${nextAnswers.occasion}, I will keep the first three suggestions disciplined and relevant.`,
-      },
-    ]);
-    setStepValue("");
+    advanceOnboarding(nextAnswers);
   }
 
   function handleChip(chip: string) {
     if (stage === "onboarding") {
-      setStepValue(chip);
+      toggleOnboardingChoice(chip);
       return;
     }
     setQuery(chip);
@@ -413,9 +648,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
   const hasOnboardingSummary =
     stage === "ready" &&
     accessChoice === "new" &&
-    answers.likes.length > 0 &&
-    answers.dislikes.length > 0 &&
-    answers.occasion.length > 0;
+    (beginnerProfile?.wantLabels.length ?? 0) > 0;
 
   if (!hydrated) {
     return (
@@ -427,7 +660,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
 
   return (
     <div className="relative mx-auto min-h-[calc(100vh-8rem)] max-w-6xl px-4 py-6 md:px-6 md:py-10">
-      <div className="absolute inset-0 -z-10 rounded-[3rem] bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.16),transparent_28%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.12),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(17,24,39,0.08),transparent_30%)]" />
+      <div className="absolute inset-0 -z-10 rounded-[3rem] bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.18),transparent_26%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.16),transparent_22%),radial-gradient(circle_at_18%_85%,rgba(168,85,247,0.14),transparent_20%),radial-gradient(circle_at_bottom_right,rgba(17,24,39,0.09),transparent_30%)]" />
 
       {stage === "gate" ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/72 px-4 backdrop-blur-xl">
@@ -480,16 +713,17 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
       ) : null}
 
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
-        <section className="rounded-[2.5rem] border border-white/80 bg-[linear-gradient(180deg,rgba(255,251,246,0.92),rgba(245,238,229,0.9))] p-5 shadow-[0_24px_90px_rgba(67,38,27,0.08)] backdrop-blur-xl sm:p-6">
+        <section className="overflow-hidden rounded-[2.5rem] border border-white/85 bg-[linear-gradient(180deg,rgba(255,252,248,0.96),rgba(245,235,223,0.94))] p-5 shadow-[0_24px_90px_rgba(67,38,27,0.1)] backdrop-blur-xl sm:p-6">
+          <div className="absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,rgba(249,115,22,0.95),rgba(245,158,11,0.95),rgba(168,85,247,0.9),rgba(14,165,233,0.9))]" />
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-700">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-[linear-gradient(135deg,rgba(255,247,230,0.95),rgba(255,255,255,0.95))] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-700 shadow-[0_10px_24px_rgba(167,94,4,0.08)]">
                 {surface === "home" ? "Chat-first perfume concierge" : "Corpus chat"}
               </div>
-              <h1 className="mt-4 text-4xl font-black tracking-tight text-stone-950 sm:text-5xl">
+              <h1 className="display-font mt-4 text-5xl font-bold tracking-tight text-stone-950 sm:text-7xl">
                 The Common Nose
               </h1>
-              <p className="mt-3 max-w-2xl text-base leading-relaxed text-stone-700">
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-stone-700 sm:text-lg">
                 Ask for perfumes the way you would ask a stylist: by feeling, occasion, and
                 direction. The assistant returns three options at a time.
               </p>
@@ -498,7 +732,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href="/library"
-                className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition-colors hover:border-stone-400 hover:bg-stone-50"
+                className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-[0_12px_26px_rgba(58,40,28,0.08)] transition-transform hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"
               >
                 <span className="text-base">⌂</span>
                 Library
@@ -506,15 +740,15 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
             </div>
           </div>
 
-          {hasOnboardingSummary ? (
-            <div className="mt-5 rounded-[1.6rem] border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
-              <span className="font-semibold">Taste profile:</span> {answers.likes} ·{" "}
-              {answers.dislikes} · {answers.occasion}
+          {hasOnboardingSummary && beginnerProfile ? (
+            <div className="mt-5 rounded-[1.6rem] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,247,230,0.94),rgba(255,238,213,0.86),rgba(255,255,255,0.92))] px-4 py-3 text-sm text-amber-900 shadow-[0_10px_26px_rgba(167,94,4,0.08)]">
+              <span className="font-semibold">Taste profile:</span>{" "}
+              {summarizeBeginnerQuizProfile(beginnerProfile).join(" · ")}
             </div>
           ) : null}
         </section>
 
-        <section className="overflow-hidden rounded-[2.8rem] border border-white/80 bg-[linear-gradient(180deg,rgba(255,249,242,0.96),rgba(248,242,234,0.92))] shadow-[0_30px_100px_rgba(42,26,17,0.1)]">
+        <section className="overflow-hidden rounded-[2.8rem] border border-white/85 bg-[linear-gradient(180deg,rgba(255,248,239,0.98),rgba(247,236,224,0.94))] shadow-[0_30px_100px_rgba(42,26,17,0.12)]">
           <div className="border-b border-stone-200/70 px-5 py-4 sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -525,7 +759,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                   Structured on-ramp, then open chat, then 3 ranked options.
                 </p>
               </div>
-              <div className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-600">
+              <div className="rounded-full border border-amber-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,244,230,0.96))] px-3 py-1 text-xs font-semibold text-stone-600 shadow-[0_10px_22px_rgba(58,40,28,0.06)]">
                 {userId ? "Signed in memory" : "Session memory"}
               </div>
             </div>
@@ -537,8 +771,8 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                 <div
                   className={`max-w-3xl rounded-[1.6rem] px-4 py-4 shadow-[0_14px_40px_rgba(58,40,28,0.06)] ${
                     message.role === "assistant"
-                      ? "border border-white/80 bg-white/82 text-stone-800"
-                      : "ml-auto border border-stone-300 bg-stone-950 text-white"
+                      ? "border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,244,236,0.9))] text-stone-800"
+                      : "ml-auto border border-stone-950 bg-[linear-gradient(135deg,rgba(17,24,39,1),rgba(59,46,36,1))] text-white"
                   }`}
                 >
                   {message.title ? (
@@ -567,59 +801,77 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
               </div>
             ))}
 
-            {stage === "onboarding" ? (
-              <div className="rounded-[1.8rem] border border-amber-200/80 bg-[linear-gradient(180deg,rgba(255,250,243,0.94),rgba(255,242,224,0.88))] p-4 shadow-[0_12px_35px_rgba(167,94,4,0.08)]">
+            {stage === "onboarding" && currentStep ? (
+              <div className="rounded-[1.8rem] border border-amber-200/80 bg-[linear-gradient(180deg,rgba(255,250,243,0.96),rgba(255,239,217,0.9))] p-4 shadow-[0_12px_35px_rgba(167,94,4,0.1)]">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
                       New user onboarding
                     </div>
-                    <h2 className="mt-1 text-xl font-semibold text-stone-950">
-                      {currentStep.label}
+                    <h2 className="display-font mt-1 text-3xl font-semibold text-stone-950">
+                      {currentStep.title}
                     </h2>
                     <p className="mt-1 text-sm leading-relaxed text-stone-600">
-                      {currentStep.helper}
+                      {currentStep.prompt}
                     </p>
                   </div>
                   <div className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-600">
-                    {stepIndex + 1}/3
+                    {stepIndex + 1}/{QUIZ_QUESTIONS.length}
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {currentStep.chips.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => setStepValue(chip)}
-                      className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-amber-300 hover:bg-amber-50"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
+                {currentStep.key === "avoid" && visibleOptions.length === 0 ? (
+                  <div className="mt-4 rounded-[1.2rem] border border-amber-200 bg-white px-4 py-3 text-sm text-amber-800">
+                    You already covered most of the major families in the first step, so I&apos;m
+                    skipping overlapping avoid choices here.
+                  </div>
+                ) : (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {visibleOptions.map((option) => {
+                      const selected = currentSelections.includes(option.value);
+                      const disabled =
+                        currentStep.kind === "multi" &&
+                        !selected &&
+                        typeof currentStep.maxSelections === "number" &&
+                        currentSelections.length >= currentStep.maxSelections;
 
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <input
-                    value={stepValue}
-                    onChange={(e) => setStepValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        submitOnboardingStep();
-                      }
-                    }}
-                    placeholder="Type an answer or click a chip..."
-                    className="min-h-12 flex-1 rounded-full border border-stone-300 bg-white px-4 py-3 text-sm text-stone-950 placeholder:text-stone-400 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300"
-                  />
-                  <button
-                    type="button"
-                    onClick={submitOnboardingStep}
-                    className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-stone-800"
-                  >
-                    Next
-                  </button>
-                </div>
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => toggleOnboardingChoice(option.value)}
+                          disabled={disabled}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-transform hover:-translate-y-0.5 ${
+                            selected
+                              ? "border-stone-950 bg-stone-950 text-white shadow-[0_10px_22px_rgba(0,0,0,0.16)]"
+                              : "border-stone-300 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
+                          } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {currentStep.kind === "multi" ? (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => advanceOnboardingStep(false)}
+                      className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-stone-800"
+                    >
+                      Continue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => advanceOnboardingStep(true)}
+                      className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-700 transition-colors hover:border-amber-300 hover:bg-amber-50"
+                    >
+                      Skip this step
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -628,7 +880,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                 e.preventDefault();
                 void runQuery();
               }}
-              className="rounded-[1.8rem] border border-stone-300/80 bg-white/90 p-4 shadow-[0_12px_35px_rgba(58,40,28,0.06)]"
+              className="rounded-[1.8rem] border border-stone-300/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.92))] p-4 shadow-[0_12px_35px_rgba(58,40,28,0.08)]"
             >
               <div className="flex flex-col gap-3 sm:flex-row">
                 <textarea
@@ -642,12 +894,12 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                   }}
                   placeholder="Ask for a perfume, a vibe, or three options for a moment..."
                   rows={2}
-                  className="min-h-[3.5rem] flex-1 resize-none rounded-[1.25rem] border border-stone-300 bg-stone-50 px-4 py-3 text-sm text-stone-950 placeholder:text-stone-400 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                  className="min-h-[3.5rem] flex-1 resize-none rounded-[1.25rem] border border-stone-300 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,245,239,0.96))] px-4 py-3 text-sm text-stone-950 placeholder:text-stone-400 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300"
                 />
                 <button
                   type="submit"
                   disabled={loading || query.trim().length < 2}
-                  className="rounded-[1.25rem] bg-[linear-gradient(135deg,rgba(23,23,23,1),rgba(68,64,60,1))] px-5 py-3 text-sm font-semibold text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-[1.25rem] bg-[linear-gradient(135deg,rgba(17,24,39,1),rgba(88,28,135,1),rgba(180,83,9,1))] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(58,40,28,0.16)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? "Thinking..." : "Ask"}
                 </button>
@@ -694,7 +946,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-[2rem] border border-white/80 bg-white/70 p-5 shadow-[0_14px_40px_rgba(58,40,28,0.08)]">
+            <div className="rounded-[2rem] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(248,241,231,0.92))] p-5 shadow-[0_14px_40px_rgba(58,40,28,0.1)]">
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
               Suggestions
             </div>
@@ -716,7 +968,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(247,241,233,0.92))] p-5 shadow-[0_14px_40px_rgba(58,40,28,0.08)]">
+            <div className="rounded-[2rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(247,241,233,0.96))] p-5 shadow-[0_14px_40px_rgba(58,40,28,0.1)]">
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-600">
               Library memory
             </div>
