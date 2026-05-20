@@ -17,7 +17,7 @@ export function AccordPill({
   return (
     <span
       onClick={onClick}
-      className={`inline-block rounded-full ${large ? "px-3 py-1 text-sm font-semibold" : "px-2.5 py-0.5 text-xs"} ${onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""} ${selected ? "ring-2 ring-offset-1" : ""}`}
+      className={`inline-block rounded-full border ${large ? "px-3 py-1 text-sm font-semibold" : "px-2.5 py-0.5 text-xs"} ${onClick ? "cursor-pointer transition-transform hover:-translate-y-0.5" : ""} ${selected ? "shadow-sm ring-2 ring-offset-1" : ""}`}
       style={{ backgroundColor: bg, color: fg, ...(selected ? { ringColor: fg } : {}) }}
     >
       {accord}
