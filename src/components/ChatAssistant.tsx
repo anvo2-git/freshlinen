@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { PerfumeDetails } from "@/components/PerfumeDetails";
 import {
   QUIZ_QUESTIONS,
   buildBeginnerQuizProfile,
@@ -13,6 +14,7 @@ import {
   type BeginnerQuizProfile,
   type QuizStepKey,
 } from "@/lib/quiz";
+import { getNoteTone } from "@/lib/note-style";
 import { useSupabase } from "@/lib/supabase/client";
 import {
   loadChatHistory,
@@ -37,6 +39,9 @@ import {
   upsertUserProfile,
   updateChatThread,
 } from "@/lib/account-memory";
+import { PerfumeHeading } from "@/components/PerfumeHeading";
+import { PerfumeBottleArt } from "@/components/PerfumeBottleArt";
+import { displayPerfumeTitle } from "@/lib/perfume-display";
 
 type RagResult = {
   doc_id: string;
@@ -50,6 +55,7 @@ type RagResult = {
   accords: string[];
   notes: string[];
   release_signal: string;
+  text: string;
   score: number;
   matched_terms: string[];
   snippet: string;
@@ -78,6 +84,9 @@ type ChatMessage =
       id: string;
       role: "user";
       text: string;
+      title?: string;
+      results?: RagResult[];
+      query?: string;
     };
 
 const QUICK_PROMPTS = [
@@ -98,12 +107,31 @@ function storageLabel(userId: string | null | undefined) {
   return userId ? "local" : "session";
 }
 
+function getChipTone(seed: string) {
+  return getNoteTone(seed);
+}
+
+function chipStyle(selected: boolean, seed: string) {
+  const tone = getChipTone(seed);
+  return selected
+    ? {
+        backgroundColor: tone.bg,
+        color: tone.fg,
+        borderColor: tone.border,
+      }
+    : {
+        backgroundColor: "rgba(255,255,255,0.95)",
+        color: tone.fg,
+        borderColor: tone.border,
+      };
+}
+
 function persistResult(result: RagResult, query: string): SavedRecommendation {
   return {
     doc_id: result.doc_id,
     query,
     brand: result.brand,
-    name: result.name,
+    name: displayPerfumeTitle(result.brand, result.name),
     official_url: result.official_url,
     url: result.url,
     source_type: result.source_type,
@@ -133,37 +161,33 @@ function ResultCard({
 
   return (
     <article className="overflow-hidden rounded-[1.4rem] border border-white/70 bg-white/80 shadow-[0_14px_40px_rgba(68,44,28,0.08)]">
-      <div className="flex items-start justify-between gap-3 border-b border-stone-200/70 px-4 py-3">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-600">
-            {result.source_type.replace(/_/g, " ")}
+      <div className="grid gap-4 border-b border-stone-200/70 px-4 py-4 sm:grid-cols-[92px_1fr]">
+        <PerfumeBottleArt brand={result.brand} name={result.name} />
+        <div className="flex flex-col justify-between gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <PerfumeHeading
+              brand={result.brand}
+              name={result.name}
+              className="min-w-0"
+              brandClassName="text-stone-500"
+              nameClassName="mt-1 text-base font-semibold text-stone-950"
+            />
+            <div className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+              {result.score.toFixed(1)}
+            </div>
           </div>
-          <h3 className="mt-1 text-base font-semibold text-stone-950">
-            {result.brand}
-            <span className="mx-1 text-stone-400">/</span>
-            {result.name}
-          </h3>
-        </div>
-        <div className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-          {result.score.toFixed(1)}
         </div>
       </div>
 
       <div className="space-y-3 px-4 py-4">
-        <p className="text-sm leading-relaxed text-stone-700">{result.snippet}</p>
-
-        <div className="flex flex-wrap gap-2 text-xs">
-          {result.accords.slice(0, 4).map((accord) => (
-            <span key={accord} className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-              {accord}
-            </span>
-          ))}
-          {result.notes.slice(0, 4).map((note) => (
-            <span key={note} className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-700">
-              {note}
-            </span>
-          ))}
-        </div>
+        <PerfumeDetails
+          brand={result.brand}
+          name={result.name}
+          snippet={result.snippet}
+          text={result.text}
+          accords={result.accords.slice(0, 4)}
+          compact
+        />
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500">
           {result.rating_value ? <span>Rating {result.rating_value}</span> : null}
@@ -720,8 +744,8 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-[linear-gradient(135deg,rgba(255,247,230,0.95),rgba(255,255,255,0.95))] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-700 shadow-[0_10px_24px_rgba(167,94,4,0.08)]">
                 {surface === "home" ? "Chat-first perfume concierge" : "Corpus chat"}
               </div>
-              <h1 className="display-font mt-4 text-5xl font-bold tracking-tight text-stone-950 sm:text-7xl">
-                The Common Nose
+              <h1 className="display-font mt-4 text-5xl font-black uppercase tracking-[0.04em] text-stone-950 sm:text-7xl">
+                Fresh Linen
               </h1>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-stone-700 sm:text-lg">
                 Ask for perfumes the way you would ask a stylist: by feeling, occasion, and
@@ -834,6 +858,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                         !selected &&
                         typeof currentStep.maxSelections === "number" &&
                         currentSelections.length >= currentStep.maxSelections;
+                      const seed = [option.label, option.description, ...option.families].join(" ");
 
                       return (
                         <button
@@ -841,11 +866,8 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                           type="button"
                           onClick={() => toggleOnboardingChoice(option.value)}
                           disabled={disabled}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-transform hover:-translate-y-0.5 ${
-                            selected
-                              ? "border-stone-950 bg-stone-950 text-white shadow-[0_10px_22px_rgba(0,0,0,0.16)]"
-                              : "border-stone-300 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
-                          } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-transform hover:-translate-y-0.5 ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                          style={chipStyle(selected, seed)}
                         >
                           {option.label}
                         </button>
@@ -911,7 +933,8 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                     key={chip}
                     type="button"
                     onClick={() => handleChip(chip)}
-                    className="rounded-full border border-stone-300 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-amber-300 hover:bg-amber-50"
+                    className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:-translate-y-0.5"
+                    style={chipStyle(false, chip)}
                   >
                     {chip}
                   </button>
@@ -928,7 +951,8 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                       key={item}
                       type="button"
                       onClick={() => handleChip(item)}
-                      className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                      className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:-translate-y-0.5"
+                      style={chipStyle(false, item)}
                     >
                       {item}
                     </button>
@@ -954,17 +978,18 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
               The first three matches are the only ones that matter for now. Ask for fewer, or
               let me sharpen the result.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {(surface === "home" ? FOLLOWUP_PROMPTS : QUICK_PROMPTS).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => handleChip(item)}
-                  className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-amber-300 hover:bg-amber-50"
-                >
-                  {item}
-                </button>
-              ))}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(surface === "home" ? FOLLOWUP_PROMPTS : QUICK_PROMPTS).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => handleChip(item)}
+                    className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:-translate-y-0.5"
+                    style={chipStyle(false, item)}
+                  >
+                    {item}
+                  </button>
+                ))}
             </div>
           </div>
 

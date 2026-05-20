@@ -1,3 +1,4 @@
+import { displayPerfumeName, displayPerfumeTitle } from "./perfume-display";
 import type { RagQueryResponse, RagResult } from "./rag";
 
 type OpenAiChoice = {
@@ -104,7 +105,7 @@ function formatResultsForPrompt(results: RagResult[]): string {
   return JSON.stringify(
     results.slice(0, 6).map((result) => ({
       brand: result.brand,
-      name: result.name,
+      name: displayPerfumeTitle(result.brand, result.name),
       score: result.score,
       source_type: result.source_type,
       accords: result.accords.slice(0, 6),
@@ -119,7 +120,7 @@ function formatResultsForPrompt(results: RagResult[]): string {
 }
 
 function buildResearchPrompt(payload: RagAIPayload): string {
-  const targets = payload.results.slice(0, 2).map((result) => `${result.brand} / ${result.name}`);
+  const targets = payload.results.slice(0, 2).map((result) => `${result.brand} / ${displayPerfumeTitle(result.brand, result.name)}`);
   return [
     "You are doing targeted web research for perfume recommendation support.",
     "Research only the explicitly named perfumes below.",
@@ -151,8 +152,10 @@ function buildResearchPrompt(payload: RagAIPayload): string {
 
 function buildRecommendationResearchPrompt(payload: RecommendationAIPayload): string {
   const names = [
-    ...payload.seedPerfumes.map((perfume) => `${perfume.b} / ${perfume.n}`),
-    ...payload.groups.flatMap((group) => group.items.slice(0, 2).map((item) => `${item.perfume.b} / ${item.perfume.n}`)),
+    ...payload.seedPerfumes.map((perfume) => `${perfume.b} / ${displayPerfumeTitle(perfume.b, perfume.n)}`),
+    ...payload.groups.flatMap((group) =>
+      group.items.slice(0, 2).map((item) => `${item.perfume.b} / ${displayPerfumeTitle(item.perfume.b, item.perfume.n)}`)
+    ),
   ];
   return [
     "You are doing targeted web research for perfume recommendation support.",
@@ -249,10 +252,26 @@ function buildRecommendationGenerationPrompt(
     `Favorite count: ${payload.favoriteCount}`,
     `Vote count: ${payload.voteCount}`,
     "Session Seeds:",
-    JSON.stringify(payload.seedPerfumes.map((perfume) => ({ brand: perfume.b, name: perfume.n, rating: perfume.r })), null, 2),
+    JSON.stringify(
+      payload.seedPerfumes.map((perfume) => ({
+        brand: perfume.b,
+        name: displayPerfumeTitle(perfume.b, perfume.n),
+        rating: perfume.r,
+      })),
+      null,
+      2
+    ),
     "",
     "Included Favorites:",
-    JSON.stringify(payload.favoritePerfumes.map((perfume) => ({ brand: perfume.b, name: perfume.n, rating: perfume.r })), null, 2),
+    JSON.stringify(
+      payload.favoritePerfumes.map((perfume) => ({
+        brand: perfume.b,
+        name: displayPerfumeTitle(perfume.b, perfume.n),
+        rating: perfume.r,
+      })),
+      null,
+      2
+    ),
     "",
     "Recommendation groups:",
     JSON.stringify(
@@ -260,7 +279,7 @@ function buildRecommendationGenerationPrompt(
         seed: `${group.seedName}`,
         items: group.items.slice(0, 5).map((item) => ({
           brand: item.perfume.b,
-          name: item.perfume.n,
+          name: displayPerfumeTitle(item.perfume.b, item.perfume.n),
           similarity: Number(item.similarity.toFixed(3)),
         })),
       })),
@@ -340,9 +359,9 @@ function safeParse(content: string | null): Record<string, unknown> | null {
 function fallbackAnswer(payload: RagAIPayload): RagAIResponse {
   const top = payload.results[0];
   const answer = payload.blendQuery && top
-    ? `Closest match for ${payload.blendQuery.reference_text} + ${payload.blendQuery.modifier_text}: ${top.brand} ${top.name}. Anchor: ${payload.blendQuery.reference_text}. Modifier: ${payload.blendQuery.modifier_text}. ${top.rationale}`
+    ? `Closest match for ${payload.blendQuery.reference_text} + ${payload.blendQuery.modifier_text}: ${displayPerfumeTitle(top.brand, top.name)}. Anchor: ${payload.blendQuery.reference_text}. Modifier: ${payload.blendQuery.modifier_text}. ${top.rationale}`
     : top
-      ? `Best match: ${top.brand} ${top.name}. ${top.rationale}`
+      ? `Best match: ${displayPerfumeTitle(top.brand, top.name)}. ${top.rationale}`
       : payload.beginnerHint || "No strong matches surfaced. Try a perfume name, a few notes, or a narrower vibe.";
   return {
     answer,

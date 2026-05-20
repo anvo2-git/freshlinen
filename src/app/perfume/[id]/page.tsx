@@ -8,8 +8,8 @@ import { AccordPill } from "@/components/AccordPill";
 import { PerfumeCard } from "@/components/PerfumeCard";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { SeedButton } from "@/components/SeedButton";
-import { GENDER_SYMBOL } from "@/lib/accords";
 import { getPerfume } from "@/lib/perfume-lookup";
+import { displayPerfumeTitle } from "@/lib/perfume-display";
 import type { Perfume } from "@/lib/types";
 
 export default function PerfumeDetailPage({
@@ -119,8 +119,6 @@ export default function PerfumeDetailPage({
     .sort((a, b) => b[1] - a[1])
     .map(([name, weight]) => ({ name, weight }));
 
-  const genderSym = GENDER_SYMBOL[perfume.g] ?? "";
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       {/* Header */}
@@ -128,8 +126,7 @@ export default function PerfumeDetailPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-sans font-bold text-3xl md:text-4xl font-medium text-violet-900">
-              {perfume.n}
-              {genderSym && <span className="text-violet-400 ml-2 text-2xl">{genderSym}</span>}
+              {displayPerfumeTitle(perfume.b, perfume.n)}
             </h1>
             {perfume.b && (
               <p className="text-violet-500 mt-1">{perfume.b}</p>
@@ -158,12 +155,6 @@ export default function PerfumeDetailPage({
           <span className="font-medium text-violet-700">{perfume.r.toFixed(1)} / 5</span>
           <span className="text-violet-300">|</span>
           <span>{perfume.rc.toLocaleString()} ratings</span>
-          {perfume.g && (
-            <>
-              <span className="text-violet-300">|</span>
-              <span className="capitalize">{perfume.g}</span>
-            </>
-          )}
         </div>
       </div>
 

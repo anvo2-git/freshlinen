@@ -10,13 +10,13 @@ export function Nav() {
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
         <Link href="/" className="flex items-center gap-3 transition-transform hover:-translate-y-0.5">
           <span className="grid h-11 w-11 place-items-center rounded-[1.2rem] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(248,212,120,0.62),rgba(239,68,68,0.22))] shadow-[0_18px_35px_rgba(120,70,20,0.12)]">
-            <Image src="/logo.png" alt="The Common Nose" width={36} height={30} className="h-7 w-auto" />
+            <Image src="/logo.png" alt="Fresh Linen" width={36} height={30} className="h-7 w-auto" />
           </span>
           <div className="hidden sm:block">
             <div className="text-[9px] font-bold uppercase tracking-[0.42em] text-amber-700">
               Chat-first fragrance salon
             </div>
-            <div className="display-font text-2xl leading-none text-stone-950">The Common Nose</div>
+            <div className="display-font text-2xl leading-none text-stone-950">Fresh Linen</div>
           </div>
         </Link>
 

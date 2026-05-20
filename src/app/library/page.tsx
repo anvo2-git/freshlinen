@@ -7,7 +7,10 @@ import { useFavorites } from "@/lib/favorites-context";
 import { useApp } from "@/lib/context";
 import { loadCatalog } from "@/lib/data";
 import { PerfumeCard } from "@/components/PerfumeCard";
+import { PerfumeBottleArt } from "@/components/PerfumeBottleArt";
 import { useSupabase } from "@/lib/supabase/client";
+import { PerfumeDetails } from "@/components/PerfumeDetails";
+import { PerfumeHeading } from "@/components/PerfumeHeading";
 import {
   loadChatHistory,
   loadSavedRecommendations,
@@ -25,35 +28,25 @@ function MemoryCard({ item }: { item: SavedRecommendation }) {
 
   return (
     <article className="rounded-[1.65rem] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,240,230,0.95))] p-4 shadow-[0_16px_42px_rgba(58,40,28,0.1)]">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-600">
-            {item.source_type.replace(/_/g, " ")}
+      <div className="grid gap-4 sm:grid-cols-[112px_1fr]">
+        <PerfumeBottleArt brand={item.brand} name={item.name} />
+        <div className="flex flex-col justify-between gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <PerfumeHeading brand={item.brand} name={item.name} nameClassName="mt-1 text-3xl font-semibold text-stone-950" />
+            <div className="rounded-full border border-amber-200 bg-[linear-gradient(135deg,rgba(255,247,230,0.95),rgba(255,255,255,0.95))] px-2.5 py-1 text-xs font-semibold text-amber-700 shadow-[0_10px_20px_rgba(167,94,4,0.08)]">
+              {item.score.toFixed(1)}
+            </div>
           </div>
-          <h3 className="display-font mt-1 text-3xl font-semibold text-stone-950">
-            {item.brand}
-            <span className="mx-1 text-stone-400">/</span>
-            {item.name}
-          </h3>
-        </div>
-        <div className="rounded-full border border-amber-200 bg-[linear-gradient(135deg,rgba(255,247,230,0.95),rgba(255,255,255,0.95))] px-2.5 py-1 text-xs font-semibold text-amber-700 shadow-[0_10px_20px_rgba(167,94,4,0.08)]">
-          {item.score.toFixed(1)}
-        </div>
-      </div>
 
-      <p className="mt-3 text-sm leading-relaxed text-stone-700">{item.snippet}</p>
-
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        {item.accords.slice(0, 4).map((accord) => (
-          <span key={accord} className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-            {accord}
-          </span>
-        ))}
-        {item.notes.slice(0, 4).map((note) => (
-          <span key={note} className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-700">
-            {note}
-          </span>
-        ))}
+          <div className="mt-0">
+            <PerfumeDetails
+              brand={item.brand}
+              name={item.name}
+              snippet={item.snippet}
+              accords={item.accords.slice(0, 4)}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">

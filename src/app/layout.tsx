@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { Archivo_Black, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ClientLayout } from "./client-layout";
 
@@ -10,15 +10,15 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const cormorant = Cormorant_Garamond({
+const archivoBlack = Archivo_Black({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "400",
   variable: "--font-display",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "The Common Nose",
+  title: "Fresh Linen",
   description:
     "A chat-first perfume assistant that teaches taste, returns three ranked matches, and keeps your favorites in one library.",
 };
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`h-full antialiased ${plusJakarta.variable} ${cormorant.variable}`}>
+    <html lang="en" className={`h-full antialiased ${plusJakarta.variable} ${archivoBlack.variable}`}>
       <body className="min-h-full flex flex-col font-sans bg-transparent">
         <ClerkProvider>
           <ClientLayout>{children}</ClientLayout>

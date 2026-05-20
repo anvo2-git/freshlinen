@@ -22,6 +22,22 @@ function cosineSimilarity(a: Record<string, number>, b: Record<string, number>):
   return dot / (Math.sqrt(magA) * Math.sqrt(magB));
 }
 
+function buildAverageAccordProfile(perfumes: Perfume[]): Record<string, number> {
+  const totals: Record<string, number> = {};
+  if (perfumes.length === 0) return totals;
+
+  for (const perfume of perfumes) {
+    for (const [accord, weight] of Object.entries(perfume.aw)) {
+      totals[accord] = (totals[accord] ?? 0) + weight;
+    }
+  }
+
+  for (const [accord, total] of Object.entries(totals)) {
+    totals[accord] = total / perfumes.length;
+  }
+  return totals;
+}
+
 function popularitySignal(perfume: Perfume): number {
   const rating = Number.isFinite(perfume.r) ? Math.max(0, Math.min(perfume.r, 5)) / 5 : 0;
   const count = Number.isFinite(perfume.rc) ? Math.min(1, Math.log1p(Math.max(0, perfume.rc)) / 10) : 0;
@@ -114,7 +130,7 @@ function getTopAccords(perfume: Perfume, n: number): Set<string> {
 }
 
 /**
- * Build a Dirichlet posterior over the accord space from picks and votes.
+ * Build a Dirichlet posterior over the accord space from seeds and votes.
  * Returns the posterior mean as a preference vector.
  *
  * Vote influence is weighted by accord rank:
@@ -126,6 +142,7 @@ function getTopAccords(perfume: Perfume, n: number): Set<string> {
  */
 function buildDirichletPosterior(
   seeds: Perfume[],
+  contextPerfumes: Perfume[],
   votes: Vote[],
   catalog: Perfume[]
 ): Record<string, number> {
@@ -133,6 +150,9 @@ function buildDirichletPosterior(
   const allAccords = new Set<string>();
   for (const seed of seeds) {
     for (const key of Object.keys(seed.aw)) allAccords.add(key);
+  }
+  for (const context of contextPerfumes) {
+    for (const key of Object.keys(context.aw)) allAccords.add(key);
   }
   for (const vote of votes) {
     const p = catalog[vote.perfumeId];
@@ -149,6 +169,12 @@ function buildDirichletPosterior(
   for (const seed of seeds) {
     for (const [accord, weight] of Object.entries(seed.aw)) {
       alpha[accord] += weight / 10; // weight is 0-100, scale to 0-10 pseudo-counts
+    }
+  }
+
+  for (const context of contextPerfumes) {
+    for (const [accord, weight] of Object.entries(context.aw)) {
+      alpha[accord] += weight / 14;
     }
   }
 
@@ -220,15 +246,20 @@ export function generateRecommendations(
   lookup: Record<string, number[]>,
   votes: Vote[] = [],
   recsPerSeed: number = 5,
+  contextPerfumes: Perfume[] = [],
   preference: RankingPreference = "balanced"
 ): Record<number, [number, number][]> {
   const seedIds = new Set(seeds.map((s) => s.id));
+  for (const context of contextPerfumes) {
+    seedIds.add(context.id);
+  }
   const allRecIds = new Set<number>(seedIds);
   const grouped: Record<number, [number, number][]> = {};
+  const contextProfile = buildAverageAccordProfile(contextPerfumes);
 
   if (votes.length > 0) {
     // Refined mode: keep per-seed grouping but re-rank using Dirichlet posterior
-    const posterior = buildDirichletPosterior(seeds, votes, catalog);
+    const posterior = buildDirichletPosterior(seeds, contextPerfumes, votes, catalog);
 
     // Blend each seed's accords with the posterior for per-seed re-ranking
     for (const seed of seeds) {
@@ -237,27 +268,32 @@ export function generateRecommendations(
       const allKeys = new Set([...Object.keys(seed.aw), ...Object.keys(posterior)]);
       for (const k of allKeys) {
         blended[k] = ((seed.aw[k] ?? 0) + (posterior[k] ?? 0)) / 2;
+        if (contextProfile[k]) {
+          blended[k] = (blended[k] + contextProfile[k]) / 2;
+        }
       }
 
       // Get candidates from the seed's top accords (same as unrefined mode)
       const candidates = getCandidates(seed, lookup);
-      const results: [number, number][] = [];
+      const results: Array<{ id: number; sim: number; sortScore: number }> = [];
 
       for (const candidateId of candidates) {
         if (allRecIds.has(candidateId)) continue;
         if (candidateId >= catalog.length) continue;
         const sim = cosineSimilarity(blended, catalog[candidateId].aw);
-        results.push([candidateId, sim]);
+        const sortScore = sim * 100 + rankingPreferenceBoost(catalog[candidateId], preference);
+        results.push({ id: candidateId, sim, sortScore });
       }
 
-      results.sort((a, b) => b[1] - a[1]);
-      grouped[seed.id] = results.slice(0, recsPerSeed);
+      results.sort((a, b) => b.sortScore - a.sortScore || b.sim - a.sim);
+      grouped[seed.id] = results.slice(0, recsPerSeed).map(({ id, sim }) => [id, sim]);
       for (const [id] of grouped[seed.id]) allRecIds.add(id);
     }
   } else {
     // Standard mode: per-seed recommendations
     for (const seed of seeds) {
-      const recs = recommendForSeed(seed, catalog, lookup, allRecIds, recsPerSeed, preference);
+      const profile = buildAverageAccordProfile([seed, ...contextPerfumes]);
+      const recs = recommendForSeed({ ...seed, aw: profile }, catalog, lookup, allRecIds, recsPerSeed, preference);
       grouped[seed.id] = recs;
       for (const [id] of recs) allRecIds.add(id);
     }
@@ -285,7 +321,8 @@ export function findByAccordPairs(
         .filter((id) => id < catalog.length)
         .map((id) => {
           const perfume = catalog[id];
-          const score = (perfume.aw[accords[0].toLowerCase()] ?? 0) + rankingPreferenceBoost(perfume, preference);
+          const accordWeight = perfume.aw[accords[0].toLowerCase()] ?? 0;
+          const score = accordWeight + rankingPreferenceBoost(perfume, preference);
           return [id, score] as [number, number];
         })
         .sort((a, b) => b[1] - a[1]);
