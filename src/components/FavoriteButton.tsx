@@ -22,10 +22,10 @@ export function FavoriteButton({ perfumeId }: { perfumeId: number }) {
           addFavorite(perfumeId);
         }
       }}
-      className={`rounded-full border p-1.5 transition-colors ${
+      className={`rounded-full border p-1.5 transition-transform hover:-translate-y-0.5 ${
         isFavorite
-          ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-          : "border-stone-200 bg-white text-stone-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
+          ? "border-rose-200 bg-[linear-gradient(135deg,rgba(255,241,246,1),rgba(251,191,36,0.18))] text-rose-600 shadow-[0_10px_24px_rgba(244,63,94,0.12)] hover:bg-rose-100"
+          : "border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,244,236,0.96))] text-stone-400 shadow-[0_10px_24px_rgba(0,0,0,0.06)] hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
       }`}
       title={isFavorite ? "Remove from favorites" : "Add to favorites"}
     >
