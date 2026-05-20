@@ -2,13 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BEGINNER_PROMPTS } from "@/lib/rag-semantic.mjs";
 import { buildGuideQuery, createGuideState, getGuideQuestion, guideReady, summarizeGuideState, type GuideState } from "@/lib/guide";
 import { loadCatalog } from "@/lib/data";
 import { useApp } from "@/lib/context";
 import { useFavorites } from "@/lib/favorites-context";
 import { getPerfume } from "@/lib/perfume-lookup";
+import { displayPerfumeTitle } from "@/lib/perfume-display";
 import { PerfumeCard } from "@/components/PerfumeCard";
+import { PerfumeDetails } from "@/components/PerfumeDetails";
+import { PerfumeHeading } from "@/components/PerfumeHeading";
+import { PerfumeBottleArt } from "@/components/PerfumeBottleArt";
 import type { Perfume } from "@/lib/types";
 import type { RagSuggestedPrompt } from "@/lib/rag";
 
@@ -24,6 +29,7 @@ type RagResult = {
   accords: string[];
   notes: string[];
   release_signal: string;
+  text: string;
   score: number;
   matched_terms: string[];
   snippet: string;
@@ -462,7 +468,7 @@ export default function GuidePage() {
                 <div className="flex flex-wrap gap-2">
                   {seedPerfumes.map((perfume) => (
                     <span key={perfume.id} className="rounded-full bg-violet-900 px-3 py-1.5 text-xs text-white">
-                      {perfume.n}
+                      {displayPerfumeTitle(perfume.b, perfume.n)}
                     </span>
                   ))}
                 </div>
@@ -586,43 +592,52 @@ export default function GuidePage() {
 
                   return (
                     <div key={perfume.doc_id} className="rounded-2xl border border-violet-200 bg-white p-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="grid gap-4 sm:grid-cols-[104px_1fr]">
+                        <Link href={perfume.official_url || perfume.url} target="_blank" rel="noreferrer" className="block">
+                          <PerfumeBottleArt brand={perfume.brand} name={perfume.name} />
+                        </Link>
                         <div>
-                          <div className="text-xs uppercase tracking-[0.2em] text-violet-400">
-                            {perfume.source_type.replace(/_/g, " ")}
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <Link
+                              href={perfume.official_url || perfume.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="min-w-0 flex-1"
+                            >
+                              <PerfumeHeading
+                                brand={perfume.brand}
+                                name={perfume.name}
+                                brandClassName="text-violet-400"
+                                nameClassName="mt-1 text-xl font-semibold text-violet-950 transition-colors hover:text-violet-700"
+                              />
+                            </Link>
+                            <div>
+                              <a
+                                href={perfume.official_url || perfume.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-violet-700 hover:border-violet-300 hover:bg-violet-100"
+                              >
+                                Open
+                                <span className="text-violet-400">↗</span>
+                              </a>
+                            </div>
+                            <div className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700">
+                              {perfume.score.toFixed(1)}
+                            </div>
                           </div>
-                          <a
-                            href={perfume.official_url || perfume.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 inline-flex items-center gap-2 text-xl font-semibold text-violet-950 hover:text-violet-700"
-                          >
-                            <span>
-                              {perfume.brand}
-                              <span className="text-violet-400"> / </span>
-                              {perfume.name}
-                            </span>
-                            <span className="text-xs text-violet-400">↗</span>
-                          </a>
-                        </div>
-                        <div className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700">
-                          {perfume.score.toFixed(1)}
+                          <div className="mt-4">
+                            <PerfumeDetails
+                              brand={perfume.brand}
+                              name={perfume.name}
+                              snippet={perfume.snippet}
+                              text={perfume.text}
+                              accords={perfume.accords.slice(0, 6)}
+                            />
+                          </div>
                         </div>
                       </div>
-                      <p className="mt-4 text-sm leading-relaxed text-violet-700">{perfume.snippet}</p>
                       <p className="mt-3 text-xs leading-relaxed text-violet-500">{perfume.rationale}</p>
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                        {perfume.accords.slice(0, 6).map((accord) => (
-                          <span key={accord} className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
-                            {accord}
-                          </span>
-                        ))}
-                        {perfume.notes.slice(0, 6).map((note) => (
-                          <span key={note} className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-                            {note}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   );
                 })}

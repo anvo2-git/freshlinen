@@ -332,6 +332,27 @@ function priorityBoost(perfume: Perfume, priority: QuizPriority, rankingPreferen
   return 0;
 }
 
+export function getQuestionOptions(stepKey: QuizStepKey): QuizChoice[] {
+  return QUIZ_QUESTIONS.find((question) => question.key === stepKey)?.options ?? [];
+}
+
+export function getFilteredAvoidOptions(wantValues: string[]): QuizChoice[] {
+  const wantFamilies = new Set(lookupChoiceFamilies(QUIZ_QUESTIONS[0], wantValues));
+  return getQuestionOptions("avoid").filter((option) => {
+    if (option.value === "skip") return true;
+    if (wantFamilies.size === 0) return true;
+    return !option.families.some((family) => wantFamilies.has(family));
+  });
+}
+
+export function sanitizeQuizAnswers(answers: Record<QuizStepKey, string[]>): Record<QuizStepKey, string[]> {
+  const allowedAvoidValues = new Set(getFilteredAvoidOptions(answers.want).map((option) => option.value));
+  return {
+    ...answers,
+    avoid: (answers.avoid ?? []).filter((value) => allowedAvoidValues.has(value)),
+  };
+}
+
 export function buildBeginnerQuizProfile(answers: Record<QuizStepKey, string[]>): BeginnerQuizProfile {
   const wantValues = answers.want ?? [];
   const avoidValues = answers.avoid ?? [];
@@ -373,10 +394,10 @@ export function buildBeginnerQuizProfile(answers: Record<QuizStepKey, string[]>)
 export function summarizeBeginnerQuizProfile(profile: BeginnerQuizProfile): string[] {
   const summary: string[] = [];
   if (profile.wantLabels.length > 0) {
-    summary.push(`Want: ${profile.wantLabels.join(", ")}`);
+    summary.push(`Wanting: ${profile.wantLabels.join(", ")}`);
   }
   if (profile.avoidLabels.length > 0) {
-    summary.push(`Avoid: ${profile.avoidLabels.join(", ")}`);
+    summary.push(`Avoiding: ${profile.avoidLabels.join(", ")}`);
   }
   if (profile.toneLabel) {
     summary.push(`Noticeability: ${profile.toneLabel}`);
@@ -388,22 +409,25 @@ export function summarizeBeginnerQuizProfile(profile: BeginnerQuizProfile): stri
 }
 
 export function buildBeginnerQuizQuery(profile: BeginnerQuizProfile): string {
-  const pieces: string[] = [];
+  const parts: string[] = [];
 
-  if (profile.wantFamilies.length > 0) {
-    pieces.push(`want ${profile.wantFamilies.join(" and ")}`);
-  }
-  if (profile.avoidFamilies.length > 0) {
-    pieces.push(`avoid ${profile.avoidFamilies.join(" and ")}`);
-  }
-  if (profile.tone !== "skip") {
-    pieces.push(toneLabels[profile.tone]);
-  }
-  if (profile.priority !== "skip") {
-    pieces.push(priorityLabels[profile.priority]);
+  if (profile.wantLabels.length > 0) {
+    parts.push(`I want to smell like ${profile.wantLabels.slice(0, 2).join(" and ")}`);
+  } else {
+    parts.push("I want a perfume recommendation");
   }
 
-  return pieces.length > 0 ? pieces.join(" ") : "beginner perfume recommendation";
+  if (profile.avoidLabels.length > 0) {
+    parts.push(`I do not want ${profile.avoidLabels.slice(0, 2).join(" or ")}`);
+  }
+  if (profile.toneLabel) {
+    parts.push(`I want it to feel ${profile.toneLabel}`);
+  }
+  if (profile.priorityLabel) {
+    parts.push(`Please favor ${profile.priorityLabel} options`);
+  }
+
+  return `${parts.join(". ")}.`;
 }
 
 function buildCandidatePool(

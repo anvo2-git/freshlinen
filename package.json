@@ -14,6 +14,7 @@
     "brand-registry": "python3 scripts/build-brand-registry.py --catalog70k /home/anvo23/projects/perfume-rec/data/catalog_70k.csv --cleaned24k /home/anvo23/projects/perfume-rec/data/perfumes/fra_cleaned.csv --output data/brand-registry.csv",
     "official-scrape": "python3 -m scripts.official_scraper.runner --brand all --seed-file data/latest-release-seeds.csv",
     "build-rag": "python3 scripts/build-rag-corpus.py",
+    "build-perfume-images": "node scripts/build-perfume-image-index.mjs",
     "rag-export": "node scripts/export-rag-benchmark.mjs",
     "rag-eval": "node scripts/rag-eval.mjs",
     "rag-fallback-test": "node scripts/test-rag-fallback.mjs",

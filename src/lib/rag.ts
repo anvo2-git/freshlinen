@@ -3,9 +3,10 @@ import path from "path";
 import Fuse from "fuse.js";
 import { buildSemanticQuerySignal } from "./rag-semantic.mjs";
 import { CONCEPT_SPECIFICITY } from "./rag-taxonomy.mjs";
+import { cleanPerfumeSnippet, displayPerfumeText, displayPerfumeTitle } from "./perfume-display";
 import type { Perfume } from "./types";
 
-const GENDER_SUFFIXES = ["for women and men", "for women", "for men"];
+const GENDER_SUFFIXES = ["for women and men", "for men and women", "for women", "for men"];
 
 export interface RagDocument {
   doc_id: string;
@@ -524,9 +525,33 @@ function topContextAccords(perfumes: Perfume[], limit = 8): string[] {
     .map(([accord]) => accord);
 }
 
-function buildSnippet(text: string, terms: string[], fallback: string): string {
-  if (!text.trim()) return fallback;
-  const lower = text.toLowerCase();
+function buildSnippet(text: string, terms: string[], fallback: string, brand = "", name = ""): string {
+  const content = cleanPerfumeSnippet(text, brand, name) || displayPerfumeText(text);
+  if (!content) return fallback;
+  const lines = content
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const meaningfulLines = lines.filter((line) => !/^(official product|brand|gender|main accords|notes|description|top notes|middle notes|base notes):/i.test(line));
+  const contentLines = meaningfulLines.length > 0 ? meaningfulLines : lines;
+
+  if (contentLines.length > 1) {
+    const lowerLines = contentLines.map((line) => line.toLowerCase());
+    let hitLine = -1;
+    for (const term of terms) {
+      const idx = lowerLines.findIndex((line) => line.includes(term));
+      if (idx >= 0 && (hitLine < 0 || idx < hitLine)) {
+        hitLine = idx;
+      }
+    }
+
+    const start = hitLine >= 0 ? Math.max(0, hitLine - 1) : 0;
+    const end = hitLine >= 0 ? Math.min(contentLines.length, hitLine + 2) : Math.min(contentLines.length, 3);
+    const excerpt = contentLines.slice(start, end).join(" · ");
+    return excerpt.length > 260 ? excerpt.slice(0, 260).trim() : excerpt;
+  }
+
+  const lower = content.toLowerCase();
   let hitIndex = -1;
   for (const term of terms) {
     const idx = lower.indexOf(term);
@@ -535,13 +560,11 @@ function buildSnippet(text: string, terms: string[], fallback: string): string {
     }
   }
   if (hitIndex < 0) {
-    return text.length > 220 ? `${text.slice(0, 220).trim()}…` : text.trim();
+    return content.length > 220 ? content.slice(0, 220).trim() : content;
   }
   const start = Math.max(0, hitIndex - 90);
-  const end = Math.min(text.length, hitIndex + 170);
-  const prefix = start > 0 ? "…" : "";
-  const suffix = end < text.length ? "…" : "";
-  return `${prefix}${text.slice(start, end).trim()}${suffix}`;
+  const end = Math.min(content.length, hitIndex + 170);
+  return content.slice(start, end).trim();
 }
 
 function parseQueryIntent(query: string): QueryIntent {
@@ -654,7 +677,7 @@ function buildAnswer(
   }
 
   const top = results.slice(0, 3);
-  const topNames = top.map((item) => `${item.brand} ${item.name}`.trim());
+  const topNames = top.map((item) => `${displayPerfumeTitle(item.brand, item.name)}`.trim());
   const semanticLead = semantic.matchedConcepts.length > 0
     ? `I read this as ${semantic.matchedConcepts.slice(0, 3).map((concept) => concept.label).join(", ")}. `
     : "";
@@ -662,8 +685,8 @@ function buildAnswer(
   if (blendQuery) {
     const [best, second] = top;
     const anchor = `${blendQuery.referenceText.trim()} + ${blendQuery.modifierText.trim()}`;
-    const bestName = `${best.brand} ${best.name}`.trim();
-    const secondName = second ? `${second.brand} ${second.name}`.trim() : "";
+    const bestName = `${displayPerfumeTitle(best.brand, best.name)}`.trim();
+    const secondName = second ? `${displayPerfumeTitle(second.brand, second.name)}`.trim() : "";
     const bestSummary = describeTopResult(best) || "closest corpus-backed blend";
     const secondSummary = second ? describeTopResult(second) : "";
     const parts = [
@@ -679,19 +702,19 @@ function buildAnswer(
     const [left, right] = top;
     const leftSummary = describeTopResult(left) || "a canonical match";
     const rightSummary = describeTopResult(right) || "a nearby alternative";
-    return `${semanticLead}${left.brand} ${left.name} and ${right.brand} ${right.name} are the clearest comparison anchors here. ${leftSummary}. ${rightSummary}.`;
+    return `${semanticLead}${displayPerfumeTitle(left.brand, left.name)} and ${displayPerfumeTitle(right.brand, right.name)} are the clearest comparison anchors here. ${leftSummary}. ${rightSummary}.`;
   }
 
   if (intent.isExactLookup) {
     const topResult = top[0];
-    return `Best match: ${topResult.brand} ${topResult.name}. ${describeTopResult(topResult) || "This looks like the canonical perfume record."}`;
+    return `Best match: ${displayPerfumeTitle(topResult.brand, topResult.name)}. ${describeTopResult(topResult) || "This looks like the canonical perfume record."}`;
   }
 
   if (intent.isAlternative) {
     return `${semanticLead}Closest alternatives: ${topNames.join("; ")}. These are the nearest corpus-backed matches to the seed perfume or vibe.`;
   }
 
-  const names = top.map((item) => `${item.brand} ${item.name}`.trim());
+  const names = top.map((item) => `${displayPerfumeTitle(item.brand, item.name)}`.trim());
   return `${semanticLead}Top matches: ${names.join("; ")}. The ranking favors perfumes whose notes, accords, and product names overlap the query.`;
 }
 
@@ -1244,7 +1267,7 @@ export function queryRag(
       doc_id: doc.doc_id,
       source_type: doc.source_type,
       brand: doc.brand,
-      name: doc.name,
+      name: displayPerfumeTitle(doc.brand, doc.name),
       url: doc.url,
       official_url: doc.official_url ?? "",
       rating_value: doc.rating_value ?? "",
@@ -1259,7 +1282,7 @@ export function queryRag(
       snippet: buildSnippet(
         doc.text,
         matchedTerms.length > 0 ? matchedTerms : terms,
-        `${doc.brand} - ${doc.name}`
+        `${doc.brand} - ${displayPerfumeTitle(doc.brand, doc.name)}`
       ),
       quality_score: qualityScore,
       comparison_part_hits: comparisonPartHits,
