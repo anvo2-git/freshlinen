@@ -2,63 +2,36 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { Show, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
-import { useApp } from "@/lib/context";
-
-const NAV_ITEMS = [
-  { href: "/", label: "Home" },
-  { href: "/board", label: "Board" },
-  { href: "/today", label: "Today" },
-  { href: "/explore", label: "Explore" },
-  { href: "/rag", label: "RAG" },
-  { href: "/guide", label: "Guide" },
-  { href: "/build", label: "Build" },
-  { href: "/quiz", label: "Quiz" },
-  { href: "/info", label: "Info" },
-  { href: "/recommendations", label: "Recs" },
-  { href: "/favorites", label: "Favorites", auth: true },
-];
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 
 export function Nav() {
-  const pathname = usePathname();
-  const { state } = useApp();
-  const { userId } = useAuth();
-  const seedCount = state.seeds.length;
-
   return (
-    <nav className="sticky top-0 z-50 bg-[#f5f2ff]/95 backdrop-blur-sm border-b border-violet-200">
-      <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <Image src="/logo.png" alt="The Common Nose" width={40} height={32} className="h-8 w-auto" />
-          <span className="text-xl font-bold text-violet-900">The Common Nose</span>
+    <nav className="sticky top-0 z-50 border-b border-white/70 bg-[rgba(251,247,240,0.78)] backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
+        <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+          <Image src="/logo.png" alt="The Common Nose" width={44} height={36} className="h-8 w-auto" />
+          <div className="hidden sm:block">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.35em] text-amber-600">
+              Chat-first fragrance
+            </div>
+            <div className="text-sm font-semibold text-stone-950">The Common Nose</div>
+          </div>
         </Link>
-        <div className="flex items-center gap-1">
-          {NAV_ITEMS.filter((item) => !("auth" in item && item.auth) || userId).map(({ href, label }) => {
-            const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                  isActive
-                    ? "bg-violet-700 text-white"
-                    : "text-violet-600 hover:text-violet-900 hover:bg-violet-100"
-                }`}
-              >
-                {label}
-                {label === "Recs" && seedCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-violet-500 text-white text-[10px] font-medium">
-                    {seedCount}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-          <div className="ml-2 flex items-center">
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/library"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-stone-300 bg-white px-3.5 text-sm font-semibold text-stone-700 transition-colors hover:border-stone-400 hover:bg-stone-50"
+            aria-label="Library"
+          >
+            <span className="text-base">⌁</span>
+            <span className="hidden sm:inline">Library</span>
+          </Link>
+
+          <div className="flex items-center">
             <Show when="signed-out">
               <SignInButton mode="modal">
-                <button className="px-3 py-1.5 rounded-md text-sm text-violet-600 hover:text-violet-900 hover:bg-violet-100 transition-colors">
+                <button className="inline-flex h-10 items-center rounded-full border border-transparent px-3 text-sm font-semibold text-stone-600 transition-colors hover:bg-white hover:text-stone-950">
                   Sign in
                 </button>
               </SignInButton>

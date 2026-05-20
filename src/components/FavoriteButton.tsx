@@ -22,10 +22,10 @@ export function FavoriteButton({ perfumeId }: { perfumeId: number }) {
           addFavorite(perfumeId);
         }
       }}
-      className={`p-1.5 rounded-md transition-colors ${
+      className={`rounded-full border p-1.5 transition-colors ${
         isFavorite
-          ? "text-rose-500 hover:text-rose-600"
-          : "text-violet-300 hover:text-rose-400"
+          ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+          : "border-stone-200 bg-white text-stone-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
       }`}
       title={isFavorite ? "Remove from favorites" : "Add to favorites"}
     >
@@ -35,7 +35,7 @@ export function FavoriteButton({ perfumeId }: { perfumeId: number }) {
         fill={isFavorite ? "currentColor" : "none"}
         stroke="currentColor"
         strokeWidth={isFavorite ? 0 : 1.5}
-        className="w-5 h-5"
+        className="h-5 w-5"
       >
         <path
           strokeLinecap="round"
