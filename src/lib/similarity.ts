@@ -1,5 +1,7 @@
 import type { Perfume, Vote } from "./types";
 
+type RankingPreference = "balanced" | "popular" | "niche";
+
 /**
  * Cosine similarity between two sparse accord weight vectors.
  * Weights are stored as Record<string, number> (0-100 scale).
@@ -18,6 +20,19 @@ function cosineSimilarity(a: Record<string, number>, b: Record<string, number>):
   }
   if (magA === 0 || magB === 0) return 0;
   return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+function popularitySignal(perfume: Perfume): number {
+  const rating = Number.isFinite(perfume.r) ? Math.max(0, Math.min(perfume.r, 5)) / 5 : 0;
+  const count = Number.isFinite(perfume.rc) ? Math.min(1, Math.log1p(Math.max(0, perfume.rc)) / 10) : 0;
+  return rating * 0.6 + count * 0.4;
+}
+
+function rankingPreferenceBoost(perfume: Perfume, preference: RankingPreference): number {
+  const popularity = popularitySignal(perfume);
+  if (preference === "popular") return popularity * 40;
+  if (preference === "niche") return (1 - popularity) * 18;
+  return 0;
 }
 
 /**
@@ -53,21 +68,23 @@ export function recommendForSeed(
   catalog: Perfume[],
   lookup: Record<string, number[]>,
   exclude: Set<number>,
-  limit: number = 5
+  limit: number = 5,
+  preference: RankingPreference = "balanced"
 ): [number, number][] {
   const candidates = getCandidates(seed, lookup);
-  const results: [number, number][] = [];
+  const results: Array<[number, number, number]> = [];
 
   for (const candidateId of candidates) {
     if (exclude.has(candidateId)) continue;
     if (candidateId >= catalog.length) continue;
     const candidate = catalog[candidateId];
     const sim = cosineSimilarity(seed.aw, candidate.aw);
-    results.push([candidateId, sim]);
+    const score = sim * 100 + rankingPreferenceBoost(candidate, preference);
+    results.push([candidateId, sim, score]);
   }
 
-  results.sort((a, b) => b[1] - a[1]);
-  return results.slice(0, limit);
+  results.sort((a, b) => b[2] - a[2] || b[1] - a[1]);
+  return results.slice(0, limit).map(([candidateId, sim]) => [candidateId, sim]);
 }
 
 // ─── Dirichlet-based session personalization ────────────────────────────────
@@ -202,7 +219,8 @@ export function generateRecommendations(
   catalog: Perfume[],
   lookup: Record<string, number[]>,
   votes: Vote[] = [],
-  recsPerSeed: number = 5
+  recsPerSeed: number = 5,
+  preference: RankingPreference = "balanced"
 ): Record<number, [number, number][]> {
   const seedIds = new Set(seeds.map((s) => s.id));
   const allRecIds = new Set<number>(seedIds);
@@ -239,7 +257,7 @@ export function generateRecommendations(
   } else {
     // Standard mode: per-seed recommendations
     for (const seed of seeds) {
-      const recs = recommendForSeed(seed, catalog, lookup, allRecIds, recsPerSeed);
+      const recs = recommendForSeed(seed, catalog, lookup, allRecIds, recsPerSeed, preference);
       grouped[seed.id] = recs;
       for (const [id] of recs) allRecIds.add(id);
     }
@@ -256,7 +274,8 @@ export function findByAccordPairs(
   accords: string[],
   catalog: Perfume[],
   lookup: Record<string, number[]>,
-  limit: number = 6
+  limit: number = 6,
+  preference: RankingPreference = "balanced"
 ): number[] {
   if (accords.length < 2) {
     // Fallback: just find perfumes with the single accord
@@ -264,7 +283,11 @@ export function findByAccordPairs(
       const ids = lookup[accords[0].toLowerCase()] ?? [];
       const scored = ids
         .filter((id) => id < catalog.length)
-        .map((id) => [id, catalog[id].aw[accords[0].toLowerCase()] ?? 0] as [number, number])
+        .map((id) => {
+          const perfume = catalog[id];
+          const score = (perfume.aw[accords[0].toLowerCase()] ?? 0) + rankingPreferenceBoost(perfume, preference);
+          return [id, score] as [number, number];
+        })
         .sort((a, b) => b[1] - a[1]);
       return scored.slice(0, limit).map(([id]) => id);
     }
@@ -292,7 +315,8 @@ export function findByAccordPairs(
     const both: [number, number][] = [];
     for (const id of idsA) {
       if (idsB.has(id) && !seen.has(id) && id < catalog.length) {
-        const score = (catalog[id].aw[a] ?? 0) + (catalog[id].aw[b] ?? 0);
+        const perfume = catalog[id];
+        const score = (perfume.aw[a] ?? 0) + (perfume.aw[b] ?? 0) + rankingPreferenceBoost(perfume, preference);
         both.push([id, score]);
       }
     }

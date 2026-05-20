@@ -11,9 +11,9 @@ function parseLimit(value: string | null): number {
   return Math.max(1, Math.min(parsed, 20));
 }
 
-async function readBody(request: NextRequest): Promise<{ query?: string; limit?: number }> {
+async function readBody(request: NextRequest): Promise<{ query?: string; limit?: number; ranking_preference?: string }> {
   try {
-    const body = (await request.json()) as { query?: string; limit?: number };
+    const body = (await request.json()) as { query?: string; limit?: number; ranking_preference?: string };
     return body ?? {};
   } catch {
     return {};
@@ -23,12 +23,16 @@ async function readBody(request: NextRequest): Promise<{ query?: string; limit?:
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q") ?? "";
   const limit = parseLimit(request.nextUrl.searchParams.get("limit"));
+  const rankingPreference = request.nextUrl.searchParams.get("ranking_preference");
 
   if (query.trim().length < 2) {
     return NextResponse.json({ error: "Query too short." }, { status: 400 });
   }
 
-  const result = queryRag(query, limit);
+  const result = queryRag(query, limit, {
+    rankingPreference:
+      rankingPreference === "popular" || rankingPreference === "niche" ? rankingPreference : "balanced",
+  });
   return NextResponse.json(result);
 }
 
@@ -36,11 +40,15 @@ export async function POST(request: NextRequest) {
   const body = await readBody(request);
   const query = (body.query ?? "").trim();
   const limit = Math.max(1, Math.min(body.limit ?? 5, 20));
+  const rankingPreference = body.ranking_preference;
 
   if (query.length < 2) {
     return NextResponse.json({ error: "Query too short." }, { status: 400 });
   }
 
-  const result = queryRag(query, limit);
+  const result = queryRag(query, limit, {
+    rankingPreference:
+      rankingPreference === "popular" || rankingPreference === "niche" ? rankingPreference : "balanced",
+  });
   return NextResponse.json(result);
 }

@@ -4,6 +4,16 @@ import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  QUIZ_QUESTIONS,
+  buildBeginnerQuizProfile,
+  buildBeginnerQuizQuery,
+  getFilteredAvoidOptions,
+  sanitizeQuizAnswers,
+  summarizeBeginnerQuizProfile,
+  type BeginnerQuizProfile,
+  type QuizStepKey,
+} from "@/lib/quiz";
+import {
   loadChatHistory,
   loadSavedRecommendations,
   readOnboardingChoice,
@@ -56,27 +66,6 @@ type ChatMessage =
       role: "user";
       text: string;
     };
-
-const NEW_USER_STEPS = [
-  {
-    key: "likes",
-    label: "What do you usually like?",
-    helper: "Think broad families: fresh woods, vanilla, rose, incense, citrus, musk.",
-    chips: ["clean woods", "vanilla", "rose", "incense", "citrus", "musks"],
-  },
-  {
-    key: "dislikes",
-    label: "What do you want to avoid?",
-    helper: "Tell me what turns you off, even if it is very specific.",
-    chips: ["too sweet", "powdery", "aquatic", "fruity", "synthetic", "smoky"],
-  },
-  {
-    key: "occasion",
-    label: "What are you dressing for?",
-    helper: "The same scent can feel right for work, dates, heat, or evenings out.",
-    chips: ["everyday", "office", "date night", "cold weather", "heat", "special occasion"],
-  },
-] as const;
 
 const QUICK_PROMPTS = [
   "Teach me what I like.",
@@ -204,8 +193,13 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
   const [accessChoice, setAccessChoice] = useState<OnboardingChoice | null>(null);
   const [stage, setStage] = useState<"gate" | "onboarding" | "ready">("gate");
   const [stepIndex, setStepIndex] = useState(0);
-  const [answers, setAnswers] = useState({ likes: "", dislikes: "", occasion: "" });
-  const [stepValue, setStepValue] = useState("");
+  const [quizAnswers, setQuizAnswers] = useState<Record<QuizStepKey, string[]>>({
+    want: [],
+    avoid: [],
+    tone: [],
+    priority: [],
+  });
+  const [beginnerProfile, setBeginnerProfile] = useState<BeginnerQuizProfile | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -240,8 +234,13 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     ]);
     setStage(choice === "new" ? "onboarding" : choice === "returning" ? "ready" : "gate");
     setStepIndex(0);
-    setAnswers({ likes: "", dislikes: "", occasion: "" });
-    setStepValue("");
+    setQuizAnswers({
+      want: [],
+      avoid: [],
+      tone: [],
+      priority: [],
+    });
+    setBeginnerProfile(null);
     setQuery("");
     setError("");
     setLoading(false);
@@ -253,9 +252,13 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     return storageMode === "local" ? window.localStorage : window.sessionStorage;
   }, [storageMode]);
 
-  const currentStep = NEW_USER_STEPS[stepIndex];
-  const quickPrompts =
-    stage === "onboarding" ? NEW_USER_STEPS[stepIndex]?.chips ?? QUICK_PROMPTS : QUICK_PROMPTS;
+  const currentStep = QUIZ_QUESTIONS[stepIndex];
+  const visibleOptions =
+    stage === "onboarding" && currentStep?.key === "avoid"
+      ? getFilteredAvoidOptions(quizAnswers.want)
+      : currentStep?.options ?? [];
+  const currentSelections = currentStep ? quizAnswers[currentStep.key] ?? [] : [];
+  const quickPrompts = stage === "onboarding" ? [] : QUICK_PROMPTS;
   const recentPrompts = chatHistory.slice(0, 3).map((item) => item.query).filter(Boolean);
 
   function appendMessage(message: ChatMessage) {
@@ -270,13 +273,18 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     setAccessChoice("new");
     setStage("onboarding");
     setStepIndex(0);
-    setStepValue("");
-    setAnswers({ likes: "", dislikes: "", occasion: "" });
+    setQuizAnswers({
+      want: [],
+      avoid: [],
+      tone: [],
+      priority: [],
+    });
+    setBeginnerProfile(null);
     setMessages([
       {
         id: "welcome",
         role: "assistant",
-        text: "Let’s build your taste profile first. I’ll ask three focused questions, then we’ll move into open chat.",
+        text: "Let’s build your taste profile first. I’ll ask a few small questions, then we’ll move into open chat.",
       },
     ]);
   }
@@ -287,6 +295,13 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
       writeOnboardingChoice(storage, "returning");
     }
     setAccessChoice("returning");
+    setQuizAnswers({
+      want: [],
+      avoid: [],
+      tone: [],
+      priority: [],
+    });
+    setBeginnerProfile(null);
     setStage("ready");
     setMessages([
       {
@@ -298,6 +313,47 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
             : "Ready. Ask for a search, a recommendation, or a scent direction and I will pull three options.",
       },
     ]);
+  }
+
+  function advanceOnboarding(nextAnswers: Record<QuizStepKey, string[]>) {
+    const sanitized = sanitizeQuizAnswers(nextAnswers);
+    const profile = buildBeginnerQuizProfile(sanitized);
+    setBeginnerProfile(profile);
+    setAccessChoice("new");
+    setStage("ready");
+    setStepIndex(0);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `onboarding-summary-${Date.now()}`,
+        role: "assistant",
+        title: "Taste profile set",
+        text:
+          summarizeBeginnerQuizProfile(profile).join(" · ") ||
+          "You can start chatting and I’ll keep the first three suggestions disciplined.",
+      },
+    ]);
+    const starterQuery = buildBeginnerQuizQuery(profile);
+    if (starterQuery) {
+      setQuery(starterQuery);
+      void runQuery(starterQuery, profile.rankingPreference);
+    }
+  }
+
+  function advanceOnboardingStep(skipCurrent = false) {
+    if (!currentStep) return;
+    const current = skipCurrent ? [] : (quizAnswers[currentStep.key] ?? []);
+    const nextAnswers = sanitizeQuizAnswers({ ...quizAnswers, [currentStep.key]: current });
+    setQuizAnswers(nextAnswers);
+    if (stepIndex < QUIZ_QUESTIONS.length - 1) {
+      setStepIndex((prev) => prev + 1);
+      return;
+    }
+    const storage = currentStorage;
+    if (storage) {
+      writeOnboardingChoice(storage, "new");
+    }
+    advanceOnboarding(nextAnswers);
   }
 
   function saveHistoryEntry(queryText: string, results: RagResult[]) {
@@ -322,7 +378,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     setSavedRecommendations(loadSavedRecommendations(storage));
   }
 
-  async function runQuery(nextQuery = query) {
+  async function runQuery(nextQuery = query, rankingPreference: BeginnerQuizProfile["rankingPreference"] = beginnerProfile?.rankingPreference ?? "balanced") {
     const trimmed = nextQuery.trim();
     if (trimmed.length < 2 || loading) return;
 
@@ -332,7 +388,9 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     appendMessage({ id: `user-${Date.now()}`, role: "user", text: trimmed });
 
     try {
-      const res = await fetch(`/api/rag/query?q=${encodeURIComponent(trimmed)}&limit=3`);
+      const res = await fetch(
+        `/api/rag/query?q=${encodeURIComponent(trimmed)}&limit=3&ranking_preference=${rankingPreference}`
+      );
       const data = (await res.json()) as RagResponse;
       if (!res.ok) {
         const message = data.error || "RAG query failed.";
@@ -369,41 +427,37 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
     }
   }
 
-  function submitOnboardingStep() {
-    const trimmed = stepValue.trim();
-    if (!trimmed) return;
-
-    const nextAnswers = { ...answers };
-    const key = NEW_USER_STEPS[stepIndex].key;
-    nextAnswers[key] = trimmed;
-    setAnswers(nextAnswers);
-
-    if (stepIndex < NEW_USER_STEPS.length - 1) {
-      setStepIndex((prev) => prev + 1);
-      setStepValue("");
+  function toggleOnboardingChoice(optionValue: string) {
+    if (!currentStep) return;
+    if (currentStep.kind === "multi") {
+      setQuizAnswers((prev) => {
+        const current = prev[currentStep.key] ?? [];
+        const selected = current.includes(optionValue);
+        const next = selected ? current.filter((value) => value !== optionValue) : [...current, optionValue];
+        if (!selected && typeof currentStep.maxSelections === "number" && next.length > currentStep.maxSelections) {
+          return prev;
+        }
+        return sanitizeQuizAnswers({ ...prev, [currentStep.key]: next });
+      });
       return;
     }
 
+    const nextAnswers = sanitizeQuizAnswers({ ...quizAnswers, [currentStep.key]: optionValue === "skip" ? [] : [optionValue] });
+    setQuizAnswers(nextAnswers);
+    if (stepIndex < QUIZ_QUESTIONS.length - 1) {
+      setStepIndex((prev) => prev + 1);
+      return;
+    }
     const storage = currentStorage;
     if (storage) {
       writeOnboardingChoice(storage, "new");
     }
-    setAccessChoice("new");
-    setStage("ready");
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        title: "Taste profile set",
-        text: `You like ${nextAnswers.likes}. You want to avoid ${nextAnswers.dislikes}. For ${nextAnswers.occasion}, I will keep the first three suggestions disciplined and relevant.`,
-      },
-    ]);
-    setStepValue("");
+    advanceOnboarding(nextAnswers);
   }
 
   function handleChip(chip: string) {
     if (stage === "onboarding") {
-      setStepValue(chip);
+      toggleOnboardingChoice(chip);
       return;
     }
     setQuery(chip);
@@ -413,9 +467,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
   const hasOnboardingSummary =
     stage === "ready" &&
     accessChoice === "new" &&
-    answers.likes.length > 0 &&
-    answers.dislikes.length > 0 &&
-    answers.occasion.length > 0;
+    (beginnerProfile?.wantLabels.length ?? 0) > 0;
 
   if (!hydrated) {
     return (
@@ -506,10 +558,10 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
             </div>
           </div>
 
-          {hasOnboardingSummary ? (
+          {hasOnboardingSummary && beginnerProfile ? (
             <div className="mt-5 rounded-[1.6rem] border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
-              <span className="font-semibold">Taste profile:</span> {answers.likes} ·{" "}
-              {answers.dislikes} · {answers.occasion}
+              <span className="font-semibold">Taste profile:</span>{" "}
+              {summarizeBeginnerQuizProfile(beginnerProfile).join(" · ")}
             </div>
           ) : null}
         </section>
@@ -567,7 +619,7 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
               </div>
             ))}
 
-            {stage === "onboarding" ? (
+            {stage === "onboarding" && currentStep ? (
               <div className="rounded-[1.8rem] border border-amber-200/80 bg-[linear-gradient(180deg,rgba(255,250,243,0.94),rgba(255,242,224,0.88))] p-4 shadow-[0_12px_35px_rgba(167,94,4,0.08)]">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -575,51 +627,69 @@ export function ChatAssistant({ surface = "home" }: { surface?: "home" | "rag" }
                       New user onboarding
                     </div>
                     <h2 className="mt-1 text-xl font-semibold text-stone-950">
-                      {currentStep.label}
+                      {currentStep.title}
                     </h2>
                     <p className="mt-1 text-sm leading-relaxed text-stone-600">
-                      {currentStep.helper}
+                      {currentStep.prompt}
                     </p>
                   </div>
                   <div className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-600">
-                    {stepIndex + 1}/3
+                    {stepIndex + 1}/{QUIZ_QUESTIONS.length}
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {currentStep.chips.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => setStepValue(chip)}
-                      className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-amber-300 hover:bg-amber-50"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
+                {currentStep.key === "avoid" && visibleOptions.length === 0 ? (
+                  <div className="mt-4 rounded-[1.2rem] border border-amber-200 bg-white px-4 py-3 text-sm text-amber-800">
+                    You already covered most of the major families in the first step, so I&apos;m
+                    skipping overlapping avoid choices here.
+                  </div>
+                ) : (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {visibleOptions.map((option) => {
+                      const selected = currentSelections.includes(option.value);
+                      const disabled =
+                        currentStep.kind === "multi" &&
+                        !selected &&
+                        typeof currentStep.maxSelections === "number" &&
+                        currentSelections.length >= currentStep.maxSelections;
 
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <input
-                    value={stepValue}
-                    onChange={(e) => setStepValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        submitOnboardingStep();
-                      }
-                    }}
-                    placeholder="Type an answer or click a chip..."
-                    className="min-h-12 flex-1 rounded-full border border-stone-300 bg-white px-4 py-3 text-sm text-stone-950 placeholder:text-stone-400 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300"
-                  />
-                  <button
-                    type="button"
-                    onClick={submitOnboardingStep}
-                    className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-stone-800"
-                  >
-                    Next
-                  </button>
-                </div>
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => toggleOnboardingChoice(option.value)}
+                          disabled={disabled}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                            selected
+                              ? "border-stone-950 bg-stone-950 text-white"
+                              : "border-stone-300 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
+                          } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {currentStep.kind === "multi" ? (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => advanceOnboardingStep(false)}
+                      className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-stone-800"
+                    >
+                      Continue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => advanceOnboardingStep(true)}
+                      className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-700 transition-colors hover:border-amber-300 hover:bg-amber-50"
+                    >
+                      Skip this step
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 

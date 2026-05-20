@@ -59,6 +59,8 @@ interface QueryIntent {
   parts: string[];
 }
 
+type RankingPreference = "balanced" | "popular" | "niche";
+
 const STOP_WORDS = new Set([
   "a",
   "an",
@@ -133,6 +135,14 @@ function qualityScore(doc: RagDocument): number {
   if (doc.release_signal) score += 1;
   if (doc.text.length > 500) score += 1;
   return score;
+}
+
+function popularityScore(doc: RagDocument): number {
+  const ratingValue = Number.parseFloat(doc.rating_value ?? "");
+  const ratingCount = Number.parseFloat(doc.rating_count ?? "");
+  const rating = Number.isFinite(ratingValue) ? Math.max(0, Math.min(ratingValue, 5)) / 5 : 0;
+  const count = Number.isFinite(ratingCount) ? Math.min(1, Math.log1p(Math.max(0, ratingCount)) / 10) : 0;
+  return rating * 0.6 + count * 0.4;
 }
 
 function buildIndexedDocument(doc: RagDocument): IndexedDocument {
@@ -266,11 +276,16 @@ function splitQueryParts(query: string): string[] {
     .filter(Boolean);
 }
 
-export function queryRag(query: string, limit = 5): RagQueryResponse {
+export function queryRag(
+  query: string,
+  limit = 5,
+  options: { rankingPreference?: RankingPreference } = {}
+): RagQueryResponse {
   const { docs, indexed } = loadCorpus();
   const normalizedQuery = normalize(query);
   const terms = uniq(tokenize(query));
   const intent = parseQueryIntent(query);
+  const rankingPreference = options.rankingPreference ?? "balanced";
   const maxResults = Math.max(1, Math.min(limit, 20));
 
   if (!normalizedQuery || terms.length === 0) {
@@ -371,6 +386,13 @@ export function queryRag(query: string, limit = 5): RagQueryResponse {
       const coverage = matchedTerms.length / terms.length;
       score += coverage * 20;
       score += entry.qualityScore * 0.75;
+
+      const popularity = popularityScore(entry.doc);
+      if (rankingPreference === "popular") {
+        score += popularity * 16;
+      } else if (rankingPreference === "niche") {
+        score += (1 - popularity) * 12;
+      }
 
       return {
         doc: entry.doc,
