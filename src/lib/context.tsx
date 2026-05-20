@@ -4,22 +4,29 @@ import { createContext, useContext, useReducer, type ReactNode } from "react";
 import type { AppState, AppAction } from "./types";
 
 const initialState: AppState = {
-  picks: [],
+  seeds: [],
   votes: [],
   quizAccords: null,
   scrapedPerfumes: [],
   personalNotes: {},
 };
 
+function syncSeedArrays(state: AppState, seeds: AppState["seeds"]): AppState {
+  return { ...state, seeds };
+}
+
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case "ADD_PICK":
-      if (state.picks.length >= 3) return state;
-      if (state.picks.some((p) => p.perfumeId === action.perfumeId)) return state;
-      return { ...state, picks: [...state.picks, { perfumeId: action.perfumeId }] };
+    case "ADD_SEED":
+      if (state.seeds.length >= 3) return state;
+      if (state.seeds.some((p) => p.perfumeId === action.perfumeId)) return state;
+      return syncSeedArrays(state, [...state.seeds, { perfumeId: action.perfumeId }]);
 
-    case "REMOVE_PICK":
-      return { ...state, picks: state.picks.filter((p) => p.perfumeId !== action.perfumeId) };
+    case "REMOVE_SEED":
+      return syncSeedArrays(
+        state,
+        state.seeds.filter((p) => p.perfumeId !== action.perfumeId)
+      );
 
     case "SET_VOTE": {
       const existing = state.votes.findIndex((v) => v.perfumeId === action.perfumeId);

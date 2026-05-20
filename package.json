@@ -16,6 +16,7 @@
     "build-rag": "python3 scripts/build-rag-corpus.py",
     "rag-export": "node scripts/export-rag-benchmark.mjs",
     "rag-eval": "node scripts/rag-eval.mjs",
+    "rag-fallback-test": "node scripts/test-rag-fallback.mjs",
     "postinstall": "node scripts/patch-esm.js",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"

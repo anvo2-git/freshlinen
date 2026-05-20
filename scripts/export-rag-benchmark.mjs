@@ -1,19 +1,13 @@
 #!/usr/bin/env node
 
 import fs from "fs";
-import path from "path";
-
-const repoRoot = process.cwd();
-const manifestPath = path.join(repoRoot, "data", "rag", "eval-manifest.json");
-const topicsPath = path.join(repoRoot, "data", "rag", "eval-topics.tsv");
-const qrelsPath = path.join(repoRoot, "data", "rag", "eval.qrels");
+import { loadCorpus, loadManifest, resolveJudgmentDocs } from "./rag-benchmark-common.mjs";
+const topicsPath = "data/rag/eval-topics.tsv";
+const qrelsPath = "data/rag/eval.qrels";
 
 function main() {
-  if (!fs.existsSync(manifestPath)) {
-    throw new Error(`Missing eval manifest: ${manifestPath}`);
-  }
-
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const manifest = loadManifest();
+  const corpus = loadCorpus();
   const cases = Array.isArray(manifest.cases) ? manifest.cases : [];
 
   const topicLines = [
@@ -40,27 +34,21 @@ function main() {
 
     const judgments = Array.isArray(testCase.judgments) ? testCase.judgments : [];
     for (const judgment of judgments) {
-      qrelLines.push(
-        [
-          qid,
-          0,
-          `${judgment.brand} :: ${judgment.name}`,
-          judgment.grade ?? 0,
-          testCase.intent ?? "",
-        ].join("\t")
-      );
-      if (Array.isArray(judgment.aliases)) {
-        for (const alias of judgment.aliases) {
-          qrelLines.push(
-            [
-              qid,
-              0,
-              `${judgment.brand} :: ${alias}`,
-              judgment.grade ?? 0,
-              testCase.intent ?? "",
-            ].join("\t")
-          );
-        }
+      const resolvedDocs = resolveJudgmentDocs(corpus, judgment);
+      if (resolvedDocs.length === 0 && testCase.success_policy !== "manual_review") {
+        throw new Error(`Unresolved benchmark judgment: ${testCase.id} :: ${judgment.brand} | ${judgment.name}`);
+      }
+      const uniqueDocs = Array.from(new Set(resolvedDocs.map((doc) => doc.url)));
+      for (const docno of uniqueDocs) {
+        qrelLines.push(
+          [
+            qid,
+            0,
+            docno,
+            judgment.grade ?? 0,
+            testCase.intent ?? "",
+          ].join("\t")
+        );
       }
     }
   }

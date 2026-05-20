@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import fs from "fs";
+import path from "path";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
@@ -18,6 +20,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  */
 
 export const maxDuration = 30;
+const LOCAL_CACHE_PATH = path.join(process.cwd(), "data", "rag", "scraped-perfumes.jsonl");
 
 // Strip protocol + trailing slash/query so the same perfume normalizes to one key
 function normalizeSourceKey(url: string): string {
@@ -28,6 +31,22 @@ function normalizeSourceKey(url: string): string {
     .replace(/\/+$/, "");
 }
 
+function appendLocalCacheRow(row: Record<string, unknown>) {
+  try {
+    fs.mkdirSync(path.dirname(LOCAL_CACHE_PATH), { recursive: true });
+    fs.appendFileSync(LOCAL_CACHE_PATH, `${JSON.stringify(row)}\n`, "utf8");
+  } catch (error) {
+    console.warn("Failed to append local scrape cache:", error instanceof Error ? error.message : String(error));
+  }
+}
+
+function isFragranticaBlocked(title: string, text: string) {
+  const combined = `${title}\n${text}`.toLowerCase();
+  return /just a moment|performing security verification|security service|cloudflare|are you human|verify you are not a bot|bot detection|unusual traffic/.test(
+    combined
+  );
+}
+
 async function scrapeWithPlaywright(url: string) {
   const { firefox } = await import("playwright");
   const browser = await firefox.launch({ headless: true });
@@ -36,6 +55,11 @@ async function scrapeWithPlaywright(url: string) {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
     // Wait a bit for dynamic content (accord bars) to render
     await page.waitForTimeout(3000);
+    const title = await page.title().catch(() => "");
+    const text = await page.evaluate(() => document.body.textContent ?? "").catch(() => "");
+    if (isFragranticaBlocked(title, text)) {
+      throw new Error("Fragrantica blocked automated scraping for this page.");
+    }
     return await extractData(page);
   } finally {
     await browser.close();
@@ -57,6 +81,11 @@ async function scrapeWithPuppeteer(url: string) {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     );
     await page.goto(url, { waitUntil: "networkidle2", timeout: 20000 });
+    const title = await page.title().catch(() => "");
+    const text = await page.evaluate(() => document.body.textContent ?? "").catch(() => "");
+    if (isFragranticaBlocked(title, text)) {
+      throw new Error("Fragrantica blocked automated scraping for this page.");
+    }
     return await extractData(page);
   } finally {
     await browser.close();
@@ -128,6 +157,18 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (cached) {
+    appendLocalCacheRow({
+      source_key: sourceKey,
+      name: cached.name,
+      brand: cached.brand ?? "",
+      gender: cached.gender ?? "",
+      rating: cached.rating ?? 0,
+      rating_count: cached.rating_count ?? 0,
+      accord_weights: cached.accord_weights ?? {},
+      source_url: url,
+      scraped_by: "cache-hit",
+      cached: true,
+    });
     return NextResponse.json({
       name: cached.name,
       brand: cached.brand ?? "",
@@ -182,6 +223,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    appendLocalCacheRow({
+      source_key: sourceKey,
+      name: finalName,
+      brand: brand || "",
+      gender: data.gender || "",
+      rating: data.rating || 0,
+      rating_count: data.ratingCount || 0,
+      accord_weights: data.accords,
+      source_url: url,
+      scraped_by: userId ?? "",
+      cached: false,
+    });
+
     return NextResponse.json({
       name: finalName,
       brand,
@@ -194,6 +248,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : JSON.stringify(err);
     console.error("Scrape error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("blocked automated scraping") ? 502 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

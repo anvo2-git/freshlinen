@@ -1,45 +1,49 @@
 # qid	iter	docno	rel	intent
-layton	0	Parfums de Marly :: LAYTON	3	exact_lookup
-naxos	0	Xerjoff :: XJ 1861 Naxos	3	exact_lookup
-naxos	0	Xerjoff :: Naxos	3	exact_lookup
-sauvage	0	Dior :: Sauvage	3	exact_lookup
-black-orchid	0	Tom Ford :: Black Orchid	3	exact_lookup
-smoky-vanilla	0	Trend Perfumes :: Smoky Vanilla	3	vibe_search
-smoky-vanilla	0	Vivamor Parfums :: Vanilla Vice	2	vibe_search
-smoky-vanilla	0	Coty :: Vanilla Fields Winter	2	vibe_search
-rose-oud-incense	0	By Kilian :: Incense Oud	3	vibe_search
-rose-oud-incense	0	Amouage :: Lyric Man	2	vibe_search
-fresh-woody	0	To Summer :: Cedarwood	3	vibe_search
-fresh-woody	0	Maison Francis Kurkdjian :: Baccarat Rouge 540	1	vibe_search
-citrus-musk	0	Chris Collins :: Citrus Grandis	3	vibe_search
-citrus-musk	0	Bath & Body Works :: Citrus & Cedar Cologne Mist	3	vibe_search
-powdery-iris	0	Zara :: Romance d'Iris	3	vibe_search
-powdery-iris	0	Prada :: Infusion d'Iris	3	vibe_search
-new-amber	0	Bahfamsn Fragrance :: Amber Ora	3	filter_search
-new-amber	0	Xerjoff :: 1888	2	filter_search
-baccarat-rouge-540	0	Maison Francis Kurkdjian :: Baccarat Rouge 540	3	exact_lookup
-baccarat-rouge-540-extrait	0	Maison Francis Kurkdjian :: Baccarat Rouge 540 Extrait de Parfum	3	exact_lookup
-reflection-man	0	Amouage :: Reflection Man	3	exact_lookup
-aventus	0	Creed :: Aventus	3	exact_lookup
-oud-satin-mood	0	Maison Francis Kurkdjian :: Oud Satin Mood	3	exact_lookup
-side-effect	0	Initio Parfums Prives :: Side Effect	3	exact_lookup
-gentle-fluidity-gold	0	Maison Francis Kurkdjian :: Gentle Fluidity Gold	3	exact_lookup
-green-irish-tweed	0	Creed :: Green Irish Tweed	3	exact_lookup
-angels-share	0	By Kilian :: Angels' Share	3	exact_lookup
-irish-leather	0	Memo Paris :: Irish Leather	3	exact_lookup
-hacivat	0	Nishane :: Hacivat	3	exact_lookup
-tobacco-vanille	0	Tom Ford :: Tobacco Vanille	3	exact_lookup
-spicebomb-extreme	0	Viktor & Rolf :: Spicebomb Extreme	3	exact_lookup
-spicebomb-extreme	0	Viktor Rolf :: Spicebomb Extreme	3	exact_lookup
-delina-exclusif	0	Parfums de Marly :: DELINA EXCLUSIF	3	exact_lookup
-delina-exclusif	0	Parfums de Marly :: Delina Exclusif	3	exact_lookup
-intense-cedrat-boise	0	Mancera :: Intense Cedrat Boise	3	exact_lookup
-ombre-leather-16	0	Tom Ford :: Ombre Leather 16	3	exact_lookup
-aventus-vs-aventus-cologne	0	Creed :: Aventus	3	comparison
-aventus-vs-aventus-cologne	0	Creed :: Aventus Cologne	3	comparison
-reflection-man-vs-reflection-45	0	Amouage :: Reflection Man	3	comparison
-reflection-man-vs-reflection-45	0	Amouage :: Reflection 45 Man	3	comparison
-layton-vs-herod	0	Parfums de Marly :: LAYTON	3	comparison
-layton-vs-herod	0	Parfums de Marly :: HEROD	3	comparison
-naxos-vs-layton	0	Xerjoff :: XJ 1861 Naxos	3	comparison
-naxos-vs-layton	0	Parfums de Marly :: LAYTON	3	comparison
+layton	0	https://www.fragrantica.com/perfume/Parfums-de-Marly/Layton-39314.html	3	exact_lookup
+layton	0	https://www.parfums-de-marly.com/products/layton	3	exact_lookup
+naxos	0	https://www.fragrantica.com/perfume/Xerjoff/XJ-1861-Naxos-30529.html	3	exact_lookup
+sauvage	0	https://www.fragrantica.com/perfume/Dior/Sauvage-31861.html	3	exact_lookup
+black-orchid	0	https://www.fragrantica.com/perfume/Tom-Ford/Black-Orchid-1018.html	3	exact_lookup
+smoky-vanilla	0	https://www.fragrantica.com/perfume/Trend-Perfumes/Smoky-Vanilla-74662.html	3	vibe_search
+smoky-vanilla	0	https://www.fragrantica.com/perfume/Vivamor-Parfums/Vanilla-Vice-88703.html	2	vibe_search
+smoky-vanilla	0	https://www.fragrantica.com/perfume/Coty/Vanilla-Fields-Winter-6099.html	2	vibe_search
+rose-oud-incense	0	https://www.fragrantica.com/perfume/By-Kilian/Incense-Oud-11090.html	3	vibe_search
+rose-oud-incense	0	https://www.fragrantica.com/perfume/Amouage/Lyric-Man-4622.html	2	vibe_search
+fresh-woody	0	https://www.fragrantica.com/perfume/Creed/Aventus-Cologne-51692.html	3	vibe_search
+fresh-woody	0	https://www.fragrantica.com/perfume/Xerjoff/Torino21-70424.html	2	vibe_search
+citrus-musk	0	https://www.fragrantica.com/perfume/Chris-Collins/Citrus-Grandis-76128.html	3	vibe_search
+citrus-musk	0	https://www.fragrantica.com/perfume/Bath-Body-Works/Citrus-Cedar-Cologne-Mist-81714.html	3	vibe_search
+powdery-iris	0	https://www.fragrantica.com/perfume/Zara/Romance-d-Iris-88299.html	3	vibe_search
+powdery-iris	0	https://www.fragrantica.com/perfume/Prada/Infusion-d-Iris-1795.html	3	vibe_search
+new-amber	0	https://www.fragrantica.com/perfume/Bahfamsn-Fragrance/Amber-Ora-72423.html	3	filter_search
+new-amber	0	https://www.fragrantica.com/perfume/Xerjoff/1888-21616.html	2	filter_search
+new-amber	0	https://www.xerjoff.com/en-us/products/1888-eau-de-parfum	2	filter_search
+baccarat-rouge-540	0	https://www.fragrantica.com/perfume/Maison-Francis-Kurkdjian/Baccarat-Rouge-540-33519.html	3	exact_lookup
+baccarat-rouge-540-extrait	0	https://www.fragrantica.com/perfume/Maison-Francis-Kurkdjian/Baccarat-Rouge-540-Extrait-de-Parfum-46066.html	3	exact_lookup
+reflection-man	0	https://www.fragrantica.com/perfume/Amouage/Reflection-Man-920.html	3	exact_lookup
+reflection-man	0	https://www.amouage.com/products/reflection-man-100ml	3	exact_lookup
+aventus	0	https://www.fragrantica.com/perfume/Creed/Aventus-9828.html	3	exact_lookup
+oud-satin-mood	0	https://www.fragrantica.com/perfume/Maison-Francis-Kurkdjian/Oud-Satin-Mood-30352.html	3	exact_lookup
+side-effect	0	https://www.fragrantica.com/perfume/Initio-Parfums-Prives/Side-Effect-42260.html	3	exact_lookup
+gentle-fluidity-gold	0	https://www.fragrantica.com/perfume/Maison-Francis-Kurkdjian/Gentle-Fluidity-Gold-53401.html	3	exact_lookup
+green-irish-tweed	0	https://www.fragrantica.com/perfume/Creed/Green-Irish-Tweed-474.html	3	exact_lookup
+angels-share	0	https://www.fragrantica.com/perfume/By-Kilian/Angels-Share-62615.html	3	exact_lookup
+irish-leather	0	https://www.fragrantica.com/perfume/Memo-Paris/Irish-Leather-18393.html	3	exact_lookup
+hacivat	0	https://www.fragrantica.com/perfume/Nishane/Hacivat-44174.html	3	exact_lookup
+tobacco-vanille	0	https://www.fragrantica.com/perfume/Tom-Ford/Tobacco-Vanille-1825.html	3	exact_lookup
+spicebomb-extreme	0	https://www.fragrantica.com/perfume/Viktor-Rolf/Spicebomb-Extreme-30499.html	3	exact_lookup
+delina-exclusif	0	https://www.fragrantica.com/perfume/Parfums-de-Marly/Delina-Exclusif-50370.html	3	exact_lookup
+delina-exclusif	0	https://www.parfums-de-marly.com/products/delina-exclusif	3	exact_lookup
+intense-cedrat-boise	0	https://www.fragrantica.com/perfume/Mancera/Intense-Cedrat-Boise-72796.html	3	exact_lookup
+ombre-leather-16	0	https://www.fragrantica.com/perfume/Tom-Ford/Ombre-Leather-16-40809.html	3	exact_lookup
+aventus-vs-aventus-cologne	0	https://www.fragrantica.com/perfume/Creed/Aventus-9828.html	3	comparison
+aventus-vs-aventus-cologne	0	https://www.fragrantica.com/perfume/Creed/Aventus-Cologne-51692.html	3	comparison
+reflection-man-vs-reflection-45	0	https://www.fragrantica.com/perfume/Amouage/Reflection-Man-920.html	3	comparison
+reflection-man-vs-reflection-45	0	https://www.amouage.com/products/reflection-man-100ml	3	comparison
+reflection-man-vs-reflection-45	0	https://www.fragrantica.com/perfume/Amouage/Reflection-45-Man-69488.html	3	comparison
+layton-vs-herod	0	https://www.fragrantica.com/perfume/Parfums-de-Marly/Layton-39314.html	3	comparison
+layton-vs-herod	0	https://www.parfums-de-marly.com/products/layton	3	comparison
+layton-vs-herod	0	https://www.fragrantica.com/perfume/Parfums-de-Marly/Herod-16939.html	3	comparison
+naxos-vs-layton	0	https://www.fragrantica.com/perfume/Xerjoff/XJ-1861-Naxos-30529.html	3	comparison
+naxos-vs-layton	0	https://www.fragrantica.com/perfume/Parfums-de-Marly/Layton-39314.html	3	comparison
+naxos-vs-layton	0	https://www.parfums-de-marly.com/products/layton	3	comparison

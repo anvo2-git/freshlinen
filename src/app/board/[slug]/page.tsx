@@ -19,9 +19,9 @@ function StatusPill({ status }: { status: string }) {
 export default async function BoardTaskPage({
   params,
 }: {
-  params: { slug: string } | Promise<{ slug: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await params;
   const slug = resolvedParams?.slug;
 
   if (!slug) {

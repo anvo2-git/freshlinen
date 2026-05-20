@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 
 import fs from "fs";
-import path from "path";
+import {
+  canonicalDocKey,
+  loadCorpus,
+  loadManifest,
+  resolveJudgmentDocs,
+} from "./rag-benchmark-common.mjs";
+import { queryRag } from "../src/lib/rag.ts";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const DEFAULT_FAIL_UNDER = 0.7;
-const MANIFEST_PATH = path.join(process.cwd(), "data", "rag", "eval-manifest.json");
+const HISTORY_PATH = "data/rag/eval-history.json";
 
 function parseArgs(argv) {
   const args = {
     baseUrl: process.env.RAG_BASE_URL || DEFAULT_BASE_URL,
     failUnder: DEFAULT_FAIL_UNDER,
     json: false,
+    output: "",
+    local: process.env.RAG_LOCAL === "1",
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -25,6 +33,11 @@ function parseArgs(argv) {
       i += 1;
     } else if (token === "--json") {
       args.json = true;
+    } else if (token === "--output") {
+      args.output = argv[i + 1] || "";
+      i += 1;
+    } else if (token === "--local") {
+      args.local = true;
     } else if (token === "--help" || token === "-h") {
       printHelpAndExit();
     }
@@ -34,31 +47,13 @@ function parseArgs(argv) {
 }
 
 function printHelpAndExit() {
-  console.log(`Usage: node scripts/rag-eval.mjs [--base-url http://127.0.0.1:3000] [--fail-under 0.7] [--json]`);
+  console.log(`Usage: node scripts/rag-eval.mjs [--base-url http://127.0.0.1:3000] [--fail-under 0.7] [--json] [--local]`);
   process.exit(0);
 }
 
-function normalize(value) {
-  return String(value)
-    .toLowerCase()
-    .replace(/['’`-]/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function loadManifest() {
-  if (!fs.existsSync(MANIFEST_PATH)) {
-    throw new Error(`Missing eval manifest: ${MANIFEST_PATH}`);
-  }
-  return JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
-}
-
 function resultSearchText(result) {
-  return normalize(
+  return `${canonicalDocKey(result)} ${
     [
-      result.brand,
-      result.name,
       result.source_type,
       result.rating_value,
       result.rating_count,
@@ -67,28 +62,28 @@ function resultSearchText(result) {
       ...(result.notes || []),
       result.snippet,
     ].join(" ")
-  );
+  }`;
+}
+
+function tokenize(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/['’`-]/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1);
 }
 
 function matchesJudgment(result, judgment) {
-  const brand = normalize(judgment.brand);
-  const name = normalize(judgment.name);
-  const aliases = Array.isArray(judgment.aliases) ? judgment.aliases.map(normalize) : [];
-  const text = normalize(`${result.brand} ${result.name}`);
-
-  const directMatch =
-    text.includes(brand) && text.includes(name) ||
-    normalize(result.brand) === brand &&
-      (normalize(result.name).includes(name) || name.includes(normalize(result.name)));
-
-  if (directMatch) return true;
-
-  return aliases.some((alias) => text.includes(alias));
+  const acceptedDocnos = Array.isArray(judgment.resolved_docnos) ? judgment.resolved_docnos : [];
+  const resultDocnos = [result.url, result.official_url].filter(Boolean);
+  return resultDocnos.some((docno) => acceptedDocnos.includes(docno));
 }
 
 function matchesTerms(result, terms) {
-  const text = resultSearchText(result);
-  return terms.every((term) => text.includes(normalize(term)));
+  const tokens = tokenize(resultSearchText(result));
+  return terms.every((term) => tokens.includes(term.toLowerCase()));
 }
 
 function scoreCase(results, testCase, defaults) {
@@ -163,14 +158,29 @@ function formatResult(result) {
   return `${result.brand} | ${result.name} [${result.score?.toFixed?.(2) ?? result.score}]`;
 }
 
+function formatDuration(ms) {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
+}
+
 async function main() {
-  const { baseUrl, failUnder, json } = parseArgs(process.argv);
+  const { baseUrl, failUnder, json, output, local } = parseArgs(process.argv);
   const manifest = loadManifest();
+  const corpus = loadCorpus();
   const cases = Array.isArray(manifest.cases) ? manifest.cases : [];
+  const preparedCases = cases.map((testCase) => ({
+    ...testCase,
+    judgments: Array.isArray(testCase.judgments)
+      ? testCase.judgments.map((judgment) => ({
+          ...judgment,
+          resolved_docnos: resolveJudgmentDocs(corpus, judgment).map((doc) => doc.url),
+        }))
+      : [],
+  }));
   const defaults = manifest.defaults || {};
   const summary = {
     baseUrl,
-    total: cases.length,
+    total: preparedCases.length,
     passed: 0,
     exactPassed: 0,
     vibePassed: 0,
@@ -180,13 +190,42 @@ async function main() {
     results: [],
   };
 
-  for (const testCase of cases) {
-    const url = `${baseUrl.replace(/\/$/, "")}/api/rag/query?q=${encodeURIComponent(testCase.query)}&limit=${testCase.target_rank ?? defaults.target_rank ?? 5}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`RAG API failed for "${testCase.query}" with HTTP ${response.status}`);
+  const unresolvedJudgments = [];
+  for (const testCase of preparedCases) {
+    for (const judgment of testCase.judgments ?? []) {
+      if (testCase.success_policy === "manual_review") continue;
+      if ((judgment.resolved_docnos ?? []).length === 0) {
+        unresolvedJudgments.push({
+          caseId: testCase.id,
+          judgment: `${judgment.brand} | ${judgment.name}`,
+        });
+      }
     }
-    const data = await response.json();
+  }
+
+  if (unresolvedJudgments.length > 0) {
+    throw new Error(
+      `Unresolved benchmark judgments: ${unresolvedJudgments
+        .map((item) => `${item.caseId}:${item.judgment}`)
+        .join(", ")}`
+    );
+  }
+
+  const startedAt = Date.now();
+  for (let i = 0; i < preparedCases.length; i += 1) {
+    const testCase = preparedCases[i];
+    const caseStartedAt = Date.now();
+    const limit = testCase.target_rank ?? defaults.target_rank ?? 5;
+    const data = local
+      ? queryRag(testCase.query, limit)
+      : await (async () => {
+          const url = `${baseUrl.replace(/\/$/, "")}/api/rag/query?q=${encodeURIComponent(testCase.query)}&limit=${limit}`;
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`RAG API failed for "${testCase.query}" with HTTP ${response.status}`);
+          }
+          return response.json();
+        })();
     const scored = scoreCase(data.results ?? [], testCase, defaults);
     summary.results.push(scored);
     if (testCase.success_policy === "manual_review") {
@@ -199,17 +238,26 @@ async function main() {
       else if (scored.intent === "comparison") summary.comparisonPassed += 1;
       else summary.vibePassed += 1;
     }
+
+    if (!json) {
+      const elapsed = Date.now() - caseStartedAt;
+      const totalElapsed = Date.now() - startedAt;
+      const status = scored.passed ? "PASS" : testCase.success_policy === "manual_review" ? "REVIEW" : "FAIL";
+      console.log(
+        `[${i + 1}/${preparedCases.length}] ${status} ${testCase.id} in ${formatDuration(elapsed)} (${formatDuration(totalElapsed)} total)`
+      );
+    }
   }
 
-  const scoredCases = cases.filter((item) => item.success_policy !== "manual_review").length || 1;
+  const scoredCases = preparedCases.filter((item) => item.success_policy !== "manual_review").length || 1;
   const overall = summary.score / scoredCases;
-  const intentCounts = cases.reduce((acc, item) => {
+  const intentCounts = preparedCases.reduce((acc, item) => {
     const key = item.intent || "unknown";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
   const report = {
-    baseUrl: summary.baseUrl,
+    baseUrl: local ? "local" : summary.baseUrl,
     total: summary.total,
     passed: summary.passed,
     exactPassed: summary.exactPassed,
@@ -230,14 +278,18 @@ async function main() {
       manualReview: !!item.manual_review,
     })),
   };
+  const stampedReport = {
+    ...report,
+    timestamp: new Date().toISOString(),
+  };
 
   if (json) {
-    console.log(JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(stampedReport, null, 2));
   } else {
-    console.log(`RAG eval against ${report.baseUrl}`);
-    console.log(`Score: ${report.score} | Passed: ${report.passed}/${report.total - report.manualReviewCases} | Exact: ${report.exactPassed}/${intentCounts.exact_lookup || 0} | Vibe: ${report.vibePassed}/${(intentCounts.vibe_search || 0) + (intentCounts.filter_search || 0)} | Compare: ${report.comparisonPassed}/${intentCounts.comparison || 0}`);
+    console.log(`RAG eval against ${stampedReport.baseUrl}`);
+    console.log(`Score: ${stampedReport.score} | Passed: ${stampedReport.passed}/${stampedReport.total - stampedReport.manualReviewCases} | Exact: ${stampedReport.exactPassed}/${intentCounts.exact_lookup || 0} | Vibe: ${stampedReport.vibePassed}/${(intentCounts.vibe_search || 0) + (intentCounts.filter_search || 0)} | Compare: ${stampedReport.comparisonPassed}/${intentCounts.comparison || 0}`);
     console.log("");
-    for (const row of report.results) {
+    for (const row of stampedReport.results) {
       const status = row.manualReview ? "REVIEW" : row.passed ? "PASS" : "FAIL";
       const where = row.matchedAt ? `top${row.matchedAt}` : "no-hit";
       console.log(`[${status}] ${row.id} (${row.intent}, ${where})`);
@@ -250,6 +302,26 @@ async function main() {
         console.log("  note: manual review only");
       }
     }
+  }
+
+  if (output) {
+    fs.writeFileSync(output, `${JSON.stringify(stampedReport, null, 2)}\n`, "utf8");
+
+    let history = [];
+    if (fs.existsSync(HISTORY_PATH)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(HISTORY_PATH, "utf8"));
+        if (Array.isArray(parsed)) {
+          history = parsed;
+        }
+      } catch {
+        history = [];
+      }
+    }
+
+    history.unshift(stampedReport);
+    history = history.slice(0, 20);
+    fs.writeFileSync(HISTORY_PATH, `${JSON.stringify(history, null, 2)}\n`, "utf8");
   }
 
   if (overall < failUnder) {

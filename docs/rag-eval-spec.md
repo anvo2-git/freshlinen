@@ -221,6 +221,11 @@ When judging a perfume result, consider:
 - strength of the scent-vibe match
 - whether the result is a valid alternative or just a keyword echo
 
+Gold-standard judgments should resolve to canonical corpus documents. For this
+project, that means the exported qrels should use corpus URLs as docno values,
+and every non-manual-review judgment should map to at least one real corpus row
+before it is accepted.
+
 Avoid judging by brand prestige alone.
 
 ### 5.3 Ties and aliases
@@ -383,6 +388,9 @@ Recommended fields:
 - `hardness`
 - `notes`
 
+For `relevant_docs`, prefer canonical corpus doc identifiers, ideally the exact
+URLs exported into `data/rag/eval.qrels`.
+
 Recommended result fields:
 
 - `rank`
@@ -393,7 +401,24 @@ Recommended result fields:
 - `matched_terms`
 - `judgment`
 
-## 12. References
+## 12. Benchmark checklist
+
+Use this checklist whenever you add or change eval cases:
+
+1. Does the judgment resolve to a real corpus URL?
+2. Is the intent clear?
+3. Is the case discriminative?
+4. Is the query representative of a real user task?
+5. Is the relevance label defensible?
+6. Does it avoid fuzzy duplicate credit?
+7. Does it cover a distinct failure mode?
+8. Does the qrels export still look canonical?
+9. Does the benchmark still have a healthy mix?
+10. Does a rerun change the score in a sensible way?
+11. Is the case hard enough to matter but not impossible?
+12. Would a second judge plausibly agree?
+
+## 13. References
 
 - BEIR metrics wiki: [Metrics available](https://github.com/beir-cellar/beir/wiki/Metrics-available)
 - BEIR paper: [OpenReview / BEIR](https://openreview.net/forum?id=wCu6T5xFjeJ)
@@ -401,4 +426,3 @@ Recommended result fields:
 - Perfume recommendation metrics: [Personalized Perfume Recommendations Based on User Descriptions Using Cosine and Jaccard Similarity](https://www.sciencedirect.com/science/article/pii/S1877050925027127)
 - Olfactory language difficulty: [The language of scents](https://www.nature.com/articles/s41599-026-07494-4)
 - Incomplete relevance judgments: [Sakai & Kando 2008](https://link.springer.com/article/10.1007/s10791-008-9059-7)
-
