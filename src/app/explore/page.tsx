@@ -104,15 +104,15 @@ export default function ExplorePage() {
     );
   }
 
-  function addToPicks(perfumeId: number) {
-    dispatch({ type: "ADD_PICK", perfumeId });
+  function addToSeeds(perfumeId: number) {
+    dispatch({ type: "ADD_SEED", perfumeId });
   }
 
-  function removeFromPicks(perfumeId: number) {
-    dispatch({ type: "REMOVE_PICK", perfumeId });
+  function removeFromSeeds(perfumeId: number) {
+    dispatch({ type: "REMOVE_SEED", perfumeId });
   }
 
-  const isPicked = (id: number) => state.picks.some((p) => p.perfumeId === id);
+  const isSeeded = (id: number) => state.seeds.some((p) => p.perfumeId === id);
 
   async function searchFragrantica() {
     if (!query.trim()) return;
@@ -171,7 +171,7 @@ export default function ExplorePage() {
   function confirmScrapedPerfume() {
     if (!scrapeResult) return;
     dispatch({ type: "ADD_SCRAPED_PERFUME", perfume: scrapeResult });
-    dispatch({ type: "ADD_PICK", perfumeId: scrapeResult.id });
+    dispatch({ type: "ADD_SEED", perfumeId: scrapeResult.id });
     setScrapeResult(null);
     setScrapeUrl("");
   }
@@ -257,12 +257,12 @@ export default function ExplorePage() {
         </div>
       )}
 
-      {/* Your Picks */}
-      {state.picks.length > 0 && (
+      {/* Your Seeds */}
+      {state.seeds.length > 0 && (
         <div className="mb-6 p-4 bg-white border border-violet-200 rounded-lg">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-sans font-bold text-lg font-medium text-violet-900">
-              Your Picks ({state.picks.length}/3)
+              Your Seeds ({state.seeds.length}/3)
             </h2>
             <button
               onClick={() => router.push("/recommendations")}
@@ -272,7 +272,7 @@ export default function ExplorePage() {
             </button>
           </div>
           <div className="grid gap-2">
-            {state.picks.map((pick) => {
+            {state.seeds.map((pick) => {
               const p = getPerfume(pick.perfumeId, catalog, state.scrapedPerfumes);
               if (!p) return null;
               return (
@@ -281,7 +281,7 @@ export default function ExplorePage() {
                   perfume={p}
                   action={
                     <button
-                      onClick={() => removeFromPicks(p.id)}
+                      onClick={() => removeFromSeeds(p.id)}
                       className="text-xs px-3 py-1.5 rounded-md border border-violet-300 text-violet-500 hover:bg-violet-100 transition-colors"
                     >
                       Remove
@@ -302,23 +302,23 @@ export default function ExplorePage() {
           </h2>
           <div className="grid gap-3">
             {displayResults.map((p) => (
-              <PerfumeCard
-                key={p.id}
-                perfume={p}
-                action={
-                  isPicked(p.id) ? (
+                <PerfumeCard
+                  key={p.id}
+                  perfume={p}
+                  action={
+                  isSeeded(p.id) ? (
                     <button
-                      onClick={() => removeFromPicks(p.id)}
+                      onClick={() => removeFromSeeds(p.id)}
                       className="text-xs px-3 py-1.5 rounded-md border border-violet-300 text-violet-500 hover:bg-violet-100 transition-colors"
                     >
                       Remove
                     </button>
-                  ) : state.picks.length < 3 ? (
+                  ) : state.seeds.length < 3 ? (
                     <button
-                      onClick={() => addToPicks(p.id)}
+                      onClick={() => addToSeeds(p.id)}
                       className="text-xs px-3 py-1.5 rounded-md bg-violet-900 text-white hover:bg-violet-700 transition-colors"
                     >
-                      + Pick
+                      + Seed
                     </button>
                   ) : null
                 }
@@ -434,7 +434,7 @@ export default function ExplorePage() {
                     onClick={confirmScrapedPerfume}
                     className="px-4 py-2 rounded-md bg-violet-900 text-white text-sm hover:bg-violet-700 transition-colors"
                   >
-                    Add to Picks
+                    Add to Seeds
                   </button>
                   <button
                     onClick={() => setScrapeResult(null)}

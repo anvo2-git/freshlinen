@@ -8,7 +8,7 @@ export interface Perfume {
   aw: Record<string, number>; // accord weights (0-100)
 }
 
-export interface Pick {
+export interface Seed {
   perfumeId: number;
 }
 
@@ -23,7 +23,7 @@ export interface PersonalNote {
 }
 
 export interface AppState {
-  picks: Pick[];
+  seeds: Seed[];
   votes: Vote[];
   quizAccords: string[] | null;
   scrapedPerfumes: Perfume[];
@@ -31,8 +31,8 @@ export interface AppState {
 }
 
 export type AppAction =
-  | { type: "ADD_PICK"; perfumeId: number }
-  | { type: "REMOVE_PICK"; perfumeId: number }
+  | { type: "ADD_SEED"; perfumeId: number }
+  | { type: "REMOVE_SEED"; perfumeId: number }
   | { type: "SET_VOTE"; perfumeId: number; vote: "up" | "down" }
   | { type: "REMOVE_VOTE"; perfumeId: number }
   | { type: "SET_QUIZ_ACCORDS"; accords: string[] }

@@ -118,6 +118,66 @@
       ]
     },
     {
+      "id": "beginner-fresh-clean",
+      "intent": "vibe_search",
+      "query": "I want something fresh and easy to wear",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["fresh"],
+      "judgments": [
+        { "brand": "Trussardi", "name": "Fresh", "grade": 3 },
+        { "brand": "Creed", "name": "Green Irish Tweed", "grade": 2 },
+        { "brand": "Creed", "name": "Aventus Cologne", "grade": 2 },
+        { "brand": "Xerjoff", "name": "Torino21", "grade": 2 }
+      ]
+    },
+    {
+      "id": "beginner-sweet-cozy",
+      "intent": "vibe_search",
+      "query": "I want something sweet and cozy",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["sweet"],
+      "judgments": [
+        { "brand": "Sweet Essentials", "name": "Cozy Amish Quilt", "grade": 3 },
+        { "brand": "Maison Francis Kurkdjian", "name": "Gentle Fluidity Gold", "grade": 2 },
+        { "brand": "By Kilian", "name": "Angels' Share", "grade": 2 },
+        { "brand": "Initio Parfums Prives", "name": "Side Effect", "grade": 2 }
+      ]
+    },
+    {
+      "id": "beginner-smoky-wearable",
+      "intent": "vibe_search",
+      "query": "I want something smoky but wearable",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["smoky"],
+      "judgments": [
+        { "brand": "Haught Parfums", "name": "Haught & Smoky", "grade": 3 },
+        { "brand": "By Kilian", "name": "Incense Oud", "grade": 2 },
+        { "brand": "Memo Paris", "name": "Irish Leather", "grade": 2 },
+        { "brand": "Tom Ford", "name": "Tobacco Vanille", "grade": 2 }
+      ]
+    },
+    {
+      "id": "beginner-soft-pretty",
+      "intent": "vibe_search",
+      "query": "I want something soft and pretty",
+      "target_rank": 5,
+      "min_grade": 2,
+      "success_policy": "any",
+      "required_terms": ["soft"],
+      "judgments": [
+        { "brand": "Aromatic Families", "name": "Soft", "grade": 3 },
+        { "brand": "Prada", "name": "Infusion d'Iris", "grade": 2 },
+        { "brand": "Zara", "name": "Romance d'Iris", "grade": 2 },
+        { "brand": "Maison Francis Kurkdjian", "name": "Oud Satin Mood", "grade": 2 }
+      ]
+    },
+    {
       "id": "new-amber",
       "intent": "filter_search",
       "query": "new fragrance amber",

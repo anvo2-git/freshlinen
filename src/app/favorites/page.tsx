@@ -53,8 +53,8 @@ export default function FavoritesPage() {
         Your Favorites
       </h1>
       <p className="text-violet-500 mb-8">
-        Perfumes you've saved. These are separate from your picks — add up to 3
-        picks to get personalized recommendations.
+        Perfumes you&apos;ve saved. Use them as persistent taste memory alongside your
+        session Seeds when you want recommendations.
       </p>
 
       {loading ? (

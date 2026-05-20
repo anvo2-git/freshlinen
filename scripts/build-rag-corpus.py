@@ -188,6 +188,46 @@ def build_official_docs(official_paths: list[Path]) -> list[dict]:
     return docs
 
 
+def build_scraped_docs(scraped_paths: list[Path]) -> list[dict]:
+    docs = []
+    for path in scraped_paths:
+        for line_number, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), start=1):
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            source_key = row.get("source_key") or f"{path.stem}-{line_number}"
+            brand = str(row.get("brand") or "").strip()
+            name = str(row.get("name") or "").strip()
+            accord_weights = row.get("accord_weights") or {}
+            accords = sorted(accord_weights.keys(), key=lambda key: accord_weights.get(key, 0), reverse=True)
+            doc_parts = [
+                f"Scraped perfume: {name}",
+                f"Brand: {brand}" if brand else "",
+                f"Gender: {row.get('gender', '')}" if row.get("gender") else "",
+                f"Accords: {', '.join(accords)}" if accords else "",
+                f"Rating: {row.get('rating', '')}" if row.get("rating") else "",
+                f"Rating count: {row.get('rating_count', '')}" if row.get("rating_count") else "",
+                f"Source URL: {row.get('source_url', '')}" if row.get("source_url") else "",
+            ]
+            docs.append(
+                {
+                    "doc_id": f"scraped-{source_key}",
+                    "source_type": "scraped_cache",
+                    "brand": brand,
+                    "name": name,
+                    "url": row.get("source_url", ""),
+                    "rating_value": str(row.get("rating", "")),
+                    "rating_count": str(row.get("rating_count", "")),
+                    "accords": accords,
+                    "notes": [],
+                    "release_signal": "",
+                    "text": "\n".join(part for part in doc_parts if part),
+                    "official_url": row.get("source_url", ""),
+                }
+            )
+    return docs
+
+
 def load_jsonl_docs(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -207,6 +247,7 @@ def main() -> None:
     retailer_dir = repo_root / "data" / "retailer-products"
     output_dir = repo_root / "data" / "rag"
     output_dir.mkdir(parents=True, exist_ok=True)
+    scraped_cache_dir = output_dir / "scraped-cache"
 
     notes_index = load_notes_index(notes_path)
     official_index = {}
@@ -216,6 +257,7 @@ def main() -> None:
     retailer_paths = sorted(
         path for path in retailer_dir.glob("*-products.jsonl") if path.is_file()
     )
+    scraped_paths = [output_dir / "scraped-perfumes.jsonl", scraped_cache_dir / "scraped-perfumes.jsonl"]
     for path in official_paths:
         official_index.update(load_official_records(path))
 
@@ -226,11 +268,12 @@ def main() -> None:
         catalog_docs = load_jsonl_docs(output_dir / "perfume-documents.jsonl")
         base_docs = catalog_docs
     official_docs = build_official_docs(official_paths + retailer_paths)
+    scraped_docs = build_scraped_docs([path for path in scraped_paths if path.exists()])
     output_path = output_dir / "perfume-documents.jsonl"
 
     merged_docs: dict[str, dict] = {}
     ordered_ids: list[str] = []
-    for row in base_docs + catalog_docs + official_docs:
+    for row in base_docs + catalog_docs + official_docs + scraped_docs:
         doc_id = row.get("doc_id")
         if not doc_id:
             continue
@@ -246,6 +289,7 @@ def main() -> None:
     manifest = {
         "catalog_docs": len(catalog_docs),
         "official_docs": len(official_docs),
+        "scraped_docs": len(scraped_docs),
         "merged_docs": len(ordered_ids),
         "output_path": str(output_path),
     }

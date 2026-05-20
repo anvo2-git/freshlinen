@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/today", label: "Today" },
   { href: "/explore", label: "Explore" },
   { href: "/rag", label: "RAG" },
+  { href: "/guide", label: "Guide" },
   { href: "/build", label: "Build" },
   { href: "/quiz", label: "Quiz" },
   { href: "/info", label: "Info" },
@@ -23,7 +24,7 @@ export function Nav() {
   const pathname = usePathname();
   const { state } = useApp();
   const { userId } = useAuth();
-  const pickCount = state.picks.length;
+  const seedCount = state.seeds.length;
 
   return (
     <nav className="sticky top-0 z-50 bg-[#f5f2ff]/95 backdrop-blur-sm border-b border-violet-200">
@@ -46,9 +47,9 @@ export function Nav() {
                 }`}
               >
                 {label}
-                {label === "Recs" && pickCount > 0 && (
+                {label === "Recs" && seedCount > 0 && (
                   <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-violet-500 text-white text-[10px] font-medium">
-                    {pickCount}
+                    {seedCount}
                   </span>
                 )}
               </Link>

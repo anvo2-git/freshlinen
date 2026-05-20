@@ -137,15 +137,15 @@ export default function BuildPage() {
     setStep(3);
   }
 
-  function addToPicks(perfumeId: number) {
-    dispatch({ type: "ADD_PICK", perfumeId });
+  function addToSeeds(perfumeId: number) {
+    dispatch({ type: "ADD_SEED", perfumeId });
   }
 
-  function removeFromPicks(perfumeId: number) {
-    dispatch({ type: "REMOVE_PICK", perfumeId });
+  function removeFromSeeds(perfumeId: number) {
+    dispatch({ type: "REMOVE_SEED", perfumeId });
   }
 
-  const isPicked = (id: number) => state.picks.some((p) => p.perfumeId === id);
+  const isSeeded = (id: number) => state.seeds.some((p) => p.perfumeId === id);
 
   function goBack() {
     if (step === 3) setStep(2);
@@ -191,7 +191,7 @@ export default function BuildPage() {
           </div>
         ))}
         <span className="ml-3 text-sm text-violet-400">
-          {step === 1 && "Pick leading accords"}
+          {step === 1 && "Choose leading accords"}
           {step === 2 && "Add trailing accords"}
           {step === 3 && "Results"}
         </span>
@@ -205,7 +205,7 @@ export default function BuildPage() {
               What should it smell like?
             </h2>
             <p className="text-sm text-violet-500 mb-5">
-              Pick 1&ndash;3 leading accords &mdash; the dominant scent character you want.
+              Choose 1&ndash;3 leading accords &mdash; the dominant scent character you want.
             </p>
 
             {leadingAccords.length > 0 && (
@@ -370,12 +370,12 @@ export default function BuildPage() {
             </div>
           </div>
 
-          {/* Picks */}
-          {state.picks.length > 0 && (
+          {/* Seeds */}
+          {state.seeds.length > 0 && (
             <div className="mb-6 p-4 bg-white border border-violet-200 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-sans font-bold text-lg font-medium text-violet-900">
-                  Your Picks ({state.picks.length}/3)
+                  Your Seeds ({state.seeds.length}/3)
                 </h2>
                 <button
                   onClick={() => router.push("/recommendations")}
@@ -398,19 +398,19 @@ export default function BuildPage() {
                     key={p.id}
                     perfume={p}
                     action={
-                      isPicked(p.id) ? (
+                      isSeeded(p.id) ? (
                         <button
-                          onClick={() => removeFromPicks(p.id)}
+                          onClick={() => removeFromSeeds(p.id)}
                           className="text-xs px-3 py-1.5 rounded-md border border-violet-300 text-violet-500 hover:bg-violet-100 transition-colors"
                         >
                           Remove
                         </button>
-                      ) : state.picks.length < 3 ? (
+                      ) : state.seeds.length < 3 ? (
                         <button
-                          onClick={() => addToPicks(p.id)}
+                          onClick={() => addToSeeds(p.id)}
                           className="text-xs px-3 py-1.5 rounded-md bg-violet-900 text-white hover:bg-violet-700 transition-colors"
                         >
-                          + Pick
+                          + Seed
                         </button>
                       ) : null
                     }

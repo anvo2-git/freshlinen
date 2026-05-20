@@ -69,6 +69,8 @@ python3 scripts/query-rag.py "woody winter vanilla" --limit 5
 The in-app retrieval UI is available at `/rag`, and the JSON endpoint is `GET /api/rag/query?q=...&limit=...`.
 When the corpus misses a perfume, the `/rag` page can search Fragrantica URLs through a Bing-backed fallback.
 The search step now returns canonical Fragrantica perfume pages, but the live Fragrantica scrape step is still blocked by Cloudflare in this environment, so `Scrape & cache` will surface an explicit blocked error instead of pretending the scrape succeeded.
+When `OPENAI_API_KEY` is set, `/api/rag/query` also formats the final answer with an LLM. The generation model defaults to `gpt-5.5`, and targeted web research for explicit perfume names defaults to `gpt-4o-search-preview`. Override those with `OPENAI_RAG_MODEL` and `OPENAI_RAG_RESEARCH_MODEL` if needed.
+The recommender uses the same split through `/api/recommendations/format`, formatting the ranked Seed/Favorites-based results with the same model defaults and optional web research on the perfumes being discussed.
 Run `npm run rag-eval` after starting the app to score the fixed RAG query set against the live endpoint.
 The machine-readable benchmark cases live at `data/rag/eval-manifest.json`.
 The exported qrels/topics files live at `data/rag/eval.qrels` and `data/rag/eval-topics.tsv`.

@@ -7,6 +7,7 @@ import { useApp } from "@/lib/context";
 import { AccordPill } from "@/components/AccordPill";
 import { PerfumeCard } from "@/components/PerfumeCard";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { SeedButton } from "@/components/SeedButton";
 import { GENDER_SYMBOL } from "@/lib/accords";
 import { getPerfume } from "@/lib/perfume-lookup";
 import type { Perfume } from "@/lib/types";
@@ -33,7 +34,7 @@ export default function PerfumeDetailPage({
 
   const perfumeId = parseInt(id, 10);
   const perfume = getPerfume(perfumeId, catalog, state.scrapedPerfumes) ?? null;
-  const isPicked = state.picks.some((p) => p.perfumeId === perfumeId);
+  const isSeeded = state.seeds.some((p) => p.perfumeId === perfumeId);
 
   useEffect(() => {
     Promise.all([loadCatalog(), loadLookup()]).then(([c, l]) => {
@@ -135,20 +136,21 @@ export default function PerfumeDetailPage({
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <SeedButton perfumeId={perfumeId} />
             <FavoriteButton perfumeId={perfumeId} />
             <button
               onClick={() =>
-                isPicked
-                  ? dispatch({ type: "REMOVE_PICK", perfumeId })
-                  : dispatch({ type: "ADD_PICK", perfumeId })
+                isSeeded
+                  ? dispatch({ type: "REMOVE_SEED", perfumeId })
+                  : dispatch({ type: "ADD_SEED", perfumeId })
               }
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isPicked
+                isSeeded
                   ? "border border-violet-300 text-violet-600 hover:bg-violet-100"
                   : "bg-violet-900 text-white hover:bg-violet-700"
               }`}
             >
-              {isPicked ? "Remove from Picks" : "+ Add to Picks"}
+              {isSeeded ? "Remove from Seeds" : "+ Add to Seeds"}
             </button>
           </div>
         </div>

@@ -1,14 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { BEGINNER_PROMPTS } from "@/lib/rag-semantic.mjs";
+import { useApp } from "@/lib/context";
+import { useFavorites } from "@/lib/favorites-context";
 import {
   scrapeFragranticaCandidate,
   searchFragranticaCandidates,
   type FragranticaCandidate,
 } from "@/lib/rag-fallback";
 import type { RagSuggestedPrompt } from "@/lib/rag";
+import { loadCatalog } from "@/lib/data";
+import { getPerfume } from "@/lib/perfume-lookup";
+import { SeedButton } from "@/components/SeedButton";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import type { Perfume } from "@/lib/types";
 
 type RagResult = {
   doc_id: string;
@@ -42,6 +49,13 @@ type RagResponse = {
   matched_concepts: string[];
   suggested_prompts: RagSuggestedPrompt[];
   results: RagResult[];
+  research_summary?: string;
+  follow_up?: string;
+  confidence?: "high" | "medium" | "low";
+  llm_used?: boolean;
+  llm_model?: string;
+  research_used?: boolean;
+  research_model?: string;
   error?: string;
 };
 
@@ -53,11 +67,15 @@ const SAMPLE_QUERIES = [
 ];
 
 export default function RagPage() {
+  const { state, dispatch } = useApp();
+  const { favoriteIds } = useFavorites();
   const [query, setQuery] = useState("clean rainy iris");
   const [limit, setLimit] = useState(5);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RagResponse | null>(null);
   const [error, setError] = useState("");
+  const [catalog, setCatalog] = useState<Perfume[]>([]);
+  const [includeFavorites, setIncludeFavorites] = useState(true);
   const [fragranticaResults, setFragranticaResults] = useState<FragranticaCandidate[]>([]);
   const [searchingFragrantica, setSearchingFragrantica] = useState(false);
   const [fragranticaError, setFragranticaError] = useState("");
@@ -65,6 +83,38 @@ export default function RagPage() {
   const [scrapeNotice, setScrapeNotice] = useState("");
 
   const canSearch = useMemo(() => query.trim().length >= 2, [query]);
+
+  useEffect(() => {
+    loadCatalog().then((items) => {
+      setCatalog(items);
+    });
+  }, []);
+
+  const seedPerfumes = useMemo(
+    () =>
+      state.seeds
+        .map((seed) => getPerfume(seed.perfumeId, catalog, state.scrapedPerfumes))
+        .filter((perfume): perfume is Perfume => !!perfume),
+    [state.seeds, catalog, state.scrapedPerfumes]
+  );
+
+  const favoritePerfumes = useMemo(
+    () =>
+      includeFavorites
+        ? Array.from(favoriteIds)
+            .map((id) => getPerfume(id, catalog, state.scrapedPerfumes))
+            .filter((perfume): perfume is Perfume => !!perfume)
+        : [],
+    [favoriteIds, includeFavorites, catalog, state.scrapedPerfumes]
+  );
+
+  const canUseFavorites = favoriteIds.size > 0;
+
+  function clearSeeds() {
+    for (const seed of state.seeds) {
+      dispatch({ type: "REMOVE_SEED", perfumeId: seed.perfumeId });
+    }
+  }
 
   async function searchFragrantica(nextQuery = query) {
     const trimmed = nextQuery.trim();
@@ -107,12 +157,44 @@ export default function RagPage() {
     if (trimmed.length < 2) return;
 
     setLoading(true);
-    setError("");
-    setFragranticaResults([]);
-    setFragranticaError("");
-    setScrapeNotice("");
+      setError("");
+      setFragranticaResults([]);
+      setFragranticaError("");
+      setScrapeNotice("");
     try {
-      const res = await fetch(`/api/rag/query?q=${encodeURIComponent(trimmed)}&limit=${limit}`);
+      const seedPerfumePayload = seedPerfumes.map((perfume) => ({
+        id: perfume.id,
+        n: perfume.n,
+        b: perfume.b,
+        g: perfume.g,
+        r: perfume.r,
+        rc: perfume.rc,
+        aw: perfume.aw,
+      }));
+      const favoritePerfumePayload = includeFavorites
+        ? favoritePerfumes.map((perfume) => ({
+            id: perfume.id,
+            n: perfume.n,
+            b: perfume.b,
+            g: perfume.g,
+            r: perfume.r,
+            rc: perfume.rc,
+            aw: perfume.aw,
+          }))
+        : [];
+      const res = await fetch("/api/rag/query", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: trimmed,
+          limit,
+          seed_perfumes: seedPerfumePayload,
+          favorite_perfumes: favoritePerfumePayload,
+          include_favorites: includeFavorites,
+        }),
+      });
       const data = (await res.json()) as RagResponse;
       if (!res.ok) {
         setResult(null);
@@ -196,6 +278,49 @@ export default function RagPage() {
               </button>
             ))}
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIncludeFavorites((prev) => !prev)}
+              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                includeFavorites
+                  ? "border-violet-300 bg-white text-violet-700"
+                  : "border-violet-200 bg-transparent text-violet-500"
+              }`}
+            >
+              {canUseFavorites
+                ? includeFavorites
+                  ? "Favorites included"
+                  : "Favorites excluded"
+                : "No favorites saved"}
+            </button>
+            {state.seeds.length > 0 && (
+              <button
+                type="button"
+                onClick={clearSeeds}
+                className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-sm text-violet-600 hover:bg-violet-100"
+              >
+                Clear seeds
+              </button>
+            )}
+          </div>
+          {state.seeds.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {seedPerfumes.map((perfume) => (
+                <span key={perfume.id} className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-3 py-1.5 text-sm text-violet-700">
+                  <span>{perfume.b} / {perfume.n}</span>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: "REMOVE_SEED", perfumeId: perfume.id })}
+                    className="text-violet-400 hover:text-violet-700"
+                    title="Remove from Seeds"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -227,11 +352,20 @@ export default function RagPage() {
             <div className="space-y-3">
               <div className="rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-violet-600">
                 {result.results.length} results from {result.corpus_size.toLocaleString()} docs · {result.intent}
+                {result.llm_used ? ` · LLM ${result.llm_model}` : ""}
               </div>
               <div className="rounded-2xl border border-violet-200 bg-white p-5">
                 <div className="text-xs uppercase tracking-[0.2em] text-violet-400">Answer brief</div>
                 <p className="mt-3 text-sm leading-relaxed text-violet-800">{result.answer}</p>
               </div>
+              {result.research_summary ? (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+                  <div className="text-xs uppercase tracking-[0.2em] text-violet-400">Research notes</div>
+                  <pre className="mt-3 overflow-x-auto text-xs leading-relaxed text-violet-800 whitespace-pre-wrap">
+                    {result.research_summary}
+                  </pre>
+                </div>
+              ) : null}
               {result.beginner_hint ? (
                 <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
                   <div className="text-xs uppercase tracking-[0.2em] text-violet-400">Beginner hint</div>
@@ -265,6 +399,12 @@ export default function RagPage() {
                   ) : null}
                 </div>
               ) : null}
+              {result.follow_up ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                  <div className="text-xs uppercase tracking-[0.2em] text-amber-500">Follow-up</div>
+                  <p className="mt-3 text-sm leading-relaxed text-amber-800">{result.follow_up}</p>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -282,59 +422,77 @@ export default function RagPage() {
             </div>
           )}
 
-          {result?.results.map((item) => (
-            <a
-              key={item.doc_id}
-              href={item.official_url || item.url}
-              target="_blank"
-              rel="noreferrer"
-              className="block rounded-2xl border border-violet-200 bg-white p-5 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-violet-300"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.2em] text-violet-400">
-                    {item.source_type.replace(/_/g, " ")}
+          {result?.results.map((item) => {
+            const perfumeId = item.doc_id.startsWith("catalog-")
+              ? Number.parseInt(item.doc_id.slice("catalog-".length), 10)
+              : null;
+
+            return (
+              <div
+                key={item.doc_id}
+                className="block rounded-2xl border border-violet-200 bg-white p-5 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-violet-300"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-violet-400">
+                      {item.source_type.replace(/_/g, " ")}
+                    </div>
+                    <a
+                      href={item.official_url || item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-2 text-xl font-semibold text-violet-950 hover:text-violet-700"
+                    >
+                      <span>
+                        {item.brand}
+                        <span className="text-violet-400"> / </span>
+                        {item.name}
+                      </span>
+                      <span className="text-xs text-violet-400">↗</span>
+                    </a>
                   </div>
-                  <h2 className="mt-1 text-xl font-semibold text-violet-950">
-                    {item.brand}
-                    <span className="text-violet-400"> / </span>
-                    {item.name}
-                  </h2>
+                  <div className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700">
+                    {item.score.toFixed(1)}
+                  </div>
                 </div>
-                <div className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700">
-                  {item.score.toFixed(1)}
+
+                <p className="mt-4 text-sm leading-relaxed text-violet-700">{item.snippet}</p>
+                <p className="mt-3 text-xs leading-relaxed text-violet-500">{item.rationale}</p>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  {item.accords.slice(0, 6).map((accord) => (
+                    <span key={accord} className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                      {accord}
+                    </span>
+                  ))}
+                  {item.notes.slice(0, 6).map((note) => (
+                    <span key={note} className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                      {note}
+                    </span>
+                  ))}
+                  {item.semantic_matches?.slice(0, 5).map((concept) => (
+                    <span key={concept} className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                      {concept}
+                    </span>
+                  ))}
                 </div>
-              </div>
 
-              <p className="mt-4 text-sm leading-relaxed text-violet-700">{item.snippet}</p>
-              <p className="mt-3 text-xs leading-relaxed text-violet-500">{item.rationale}</p>
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-violet-500">
+                  {item.rating_value ? <span>Rating {item.rating_value}</span> : null}
+                  {item.rating_count ? <span>{item.rating_count} votes</span> : null}
+                  {item.release_signal ? <span>{item.release_signal}</span> : null}
+                  {item.matched_terms.length > 0 ? <span>Matched: {item.matched_terms.join(", ")}</span> : null}
+                </div>
 
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                {item.accords.slice(0, 6).map((accord) => (
-                  <span key={accord} className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
-                    {accord}
-                  </span>
-                ))}
-                {item.notes.slice(0, 6).map((note) => (
-                  <span key={note} className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-                    {note}
-                  </span>
-                ))}
-                {item.semantic_matches?.slice(0, 5).map((concept) => (
-                  <span key={concept} className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
-                    {concept}
-                  </span>
-                ))}
+                {perfumeId !== null && Number.isFinite(perfumeId) ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <SeedButton perfumeId={perfumeId} />
+                    <FavoriteButton perfumeId={perfumeId} />
+                  </div>
+                ) : null}
               </div>
-
-              <div className="mt-4 flex flex-wrap gap-4 text-xs text-violet-500">
-                {item.rating_value ? <span>Rating {item.rating_value}</span> : null}
-                {item.rating_count ? <span>{item.rating_count} votes</span> : null}
-                {item.release_signal ? <span>{item.release_signal}</span> : null}
-                {item.matched_terms.length > 0 ? <span>Matched: {item.matched_terms.join(", ")}</span> : null}
-              </div>
-            </a>
-          ))}
+            );
+          })}
         </div>
 
         <aside className="space-y-4">

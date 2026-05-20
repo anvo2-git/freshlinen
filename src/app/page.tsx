@@ -30,8 +30,8 @@ export default function HomePage() {
             I know what I like
           </h2>
           <p className="text-sm text-violet-500 leading-relaxed">
-            Search for your favourite perfumes, pick up to 3, and get personalised
-            recommendations based on their accord profiles.
+            Search for your favourite perfumes, save up to 3 as Seeds, and get
+            personalised recommendations based on their accord profiles.
           </p>
         </Link>
         <Link
@@ -72,7 +72,7 @@ export default function HomePage() {
             <div className="w-10 h-10 rounded-full bg-violet-900 text-white flex items-center justify-center mx-auto mb-3 text-sm font-medium">
               1
             </div>
-            <h3 className="font-medium text-violet-900 mb-1">Pick your perfumes</h3>
+            <h3 className="font-medium text-violet-900 mb-1">Choose your Seeds</h3>
             <p className="text-sm text-violet-500">
               Search our catalog of 68,000 fragrances or take the quiz to discover your accord profile.
             </p>
@@ -83,7 +83,7 @@ export default function HomePage() {
             </div>
             <h3 className="font-medium text-violet-900 mb-1">Get recommendations</h3>
             <p className="text-sm text-violet-500">
-              We analyse the accord DNA of your picks and find similar fragrances using cosine similarity.
+              We analyse the accord DNA of your Seeds and find similar fragrances using cosine similarity.
             </p>
           </div>
           <div>

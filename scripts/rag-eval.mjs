@@ -11,6 +11,7 @@ import { queryRag } from "../src/lib/rag.ts";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const DEFAULT_FAIL_UNDER = 0.7;
+const HISTORY_PATH = "data/rag/eval-history.json";
 
 function parseArgs(argv) {
   const args = {
@@ -157,6 +158,11 @@ function formatResult(result) {
   return `${result.brand} | ${result.name} [${result.score?.toFixed?.(2) ?? result.score}]`;
 }
 
+function formatDuration(ms) {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
+}
+
 async function main() {
   const { baseUrl, failUnder, json, output, local } = parseArgs(process.argv);
   const manifest = loadManifest();
@@ -205,7 +211,10 @@ async function main() {
     );
   }
 
-  for (const testCase of preparedCases) {
+  const startedAt = Date.now();
+  for (let i = 0; i < preparedCases.length; i += 1) {
+    const testCase = preparedCases[i];
+    const caseStartedAt = Date.now();
     const limit = testCase.target_rank ?? defaults.target_rank ?? 5;
     const data = local
       ? queryRag(testCase.query, limit)
@@ -228,6 +237,15 @@ async function main() {
       if (scored.intent === "exact_lookup") summary.exactPassed += 1;
       else if (scored.intent === "comparison") summary.comparisonPassed += 1;
       else summary.vibePassed += 1;
+    }
+
+    if (!json) {
+      const elapsed = Date.now() - caseStartedAt;
+      const totalElapsed = Date.now() - startedAt;
+      const status = scored.passed ? "PASS" : testCase.success_policy === "manual_review" ? "REVIEW" : "FAIL";
+      console.log(
+        `[${i + 1}/${preparedCases.length}] ${status} ${testCase.id} in ${formatDuration(elapsed)} (${formatDuration(totalElapsed)} total)`
+      );
     }
   }
 
@@ -260,14 +278,18 @@ async function main() {
       manualReview: !!item.manual_review,
     })),
   };
+  const stampedReport = {
+    ...report,
+    timestamp: new Date().toISOString(),
+  };
 
   if (json) {
-    console.log(JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(stampedReport, null, 2));
   } else {
-    console.log(`RAG eval against ${report.baseUrl}`);
-    console.log(`Score: ${report.score} | Passed: ${report.passed}/${report.total - report.manualReviewCases} | Exact: ${report.exactPassed}/${intentCounts.exact_lookup || 0} | Vibe: ${report.vibePassed}/${(intentCounts.vibe_search || 0) + (intentCounts.filter_search || 0)} | Compare: ${report.comparisonPassed}/${intentCounts.comparison || 0}`);
+    console.log(`RAG eval against ${stampedReport.baseUrl}`);
+    console.log(`Score: ${stampedReport.score} | Passed: ${stampedReport.passed}/${stampedReport.total - stampedReport.manualReviewCases} | Exact: ${stampedReport.exactPassed}/${intentCounts.exact_lookup || 0} | Vibe: ${stampedReport.vibePassed}/${(intentCounts.vibe_search || 0) + (intentCounts.filter_search || 0)} | Compare: ${stampedReport.comparisonPassed}/${intentCounts.comparison || 0}`);
     console.log("");
-    for (const row of report.results) {
+    for (const row of stampedReport.results) {
       const status = row.manualReview ? "REVIEW" : row.passed ? "PASS" : "FAIL";
       const where = row.matchedAt ? `top${row.matchedAt}` : "no-hit";
       console.log(`[${status}] ${row.id} (${row.intent}, ${where})`);
@@ -283,7 +305,23 @@ async function main() {
   }
 
   if (output) {
-    fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    fs.writeFileSync(output, `${JSON.stringify(stampedReport, null, 2)}\n`, "utf8");
+
+    let history = [];
+    if (fs.existsSync(HISTORY_PATH)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(HISTORY_PATH, "utf8"));
+        if (Array.isArray(parsed)) {
+          history = parsed;
+        }
+      } catch {
+        history = [];
+      }
+    }
+
+    history.unshift(stampedReport);
+    history = history.slice(0, 20);
+    fs.writeFileSync(HISTORY_PATH, `${JSON.stringify(history, null, 2)}\n`, "utf8");
   }
 
   if (overall < failUnder) {

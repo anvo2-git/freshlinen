@@ -55,6 +55,7 @@ type EvalReport = {
   failUnder: number;
   intentCounts: Record<string, number>;
   results: EvalResultRow[];
+  timestamp?: string;
 };
 
 const repoRoot = process.cwd();
@@ -62,6 +63,7 @@ const manifestPath = path.join(repoRoot, "data", "rag", "eval-manifest.json");
 const qrelsPath = path.join(repoRoot, "data", "rag", "eval.qrels");
 const topicsPath = path.join(repoRoot, "data", "rag", "eval-topics.tsv");
 const latestPath = path.join(repoRoot, "data", "rag", "eval-latest.json");
+const historyPath = path.join(repoRoot, "data", "rag", "eval-history.json");
 
 function readJsonFile<T>(filePath: string): T | null {
   if (!fs.existsSync(filePath)) return null;
@@ -83,6 +85,7 @@ function gradeLabel(grade: number): string {
 export default function RagEvalPage() {
   const manifest = readJsonFile<EvalManifest>(manifestPath);
   const latest = readJsonFile<EvalReport>(latestPath);
+  const history = readJsonFile<EvalReport[]>(historyPath) ?? [];
   const qrelsText = fs.existsSync(qrelsPath) ? fs.readFileSync(qrelsPath, "utf8") : "";
   const topicsText = fs.existsSync(topicsPath) ? fs.readFileSync(topicsPath, "utf8") : "";
 
@@ -102,6 +105,7 @@ export default function RagEvalPage() {
   const manualReviewCount = manifest.cases.filter((c) => c.success_policy === "manual_review").length;
   const latestResults = latest?.results ?? [];
   const resultById = new Map(latestResults.map((row) => [row.id, row]));
+  const runHistory = history.length > 0 ? history : latest ? [latest] : [];
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -256,6 +260,38 @@ export default function RagEvalPage() {
             <p className="mt-3 text-sm leading-relaxed text-violet-700">
               The benchmark can be exported with <code className="text-violet-900">npm run rag-export</code>.
             </p>
+          </div>
+
+          <div className="rounded-2xl border border-violet-200 bg-white p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Run history</h2>
+            {runHistory.length > 0 ? (
+              <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-violet-50 text-violet-500">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Time</th>
+                      <th className="px-3 py-2 font-medium">Score</th>
+                      <th className="px-3 py-2 font-medium">Passed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runHistory.slice(0, 8).map((run, index) => (
+                      <tr key={`${run.timestamp ?? "latest"}-${index}`} className="border-t border-violet-100">
+                        <td className="px-3 py-2 text-violet-700">
+                          {run.timestamp ? new Date(run.timestamp).toLocaleString() : "latest"}
+                        </td>
+                        <td className="px-3 py-2 font-medium text-violet-950">{run.score?.toFixed?.(3) ?? "—"}</td>
+                        <td className="px-3 py-2 text-violet-700">
+                          {run.passed}/{run.total - run.manualReviewCases}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-violet-500">No saved runs yet.</p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-violet-200 bg-white p-5">
